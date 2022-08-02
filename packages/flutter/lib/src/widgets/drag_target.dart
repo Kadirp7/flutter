@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'basic.dart';
 import 'binding.dart';
 import 'framework.dart';
+import 'media_query.dart';
 import 'overlay.dart';
 
 /// Signature for determining whether the given data will be accepted by a [DragTarget].
@@ -165,73 +166,12 @@ enum DragAnchor {
 ///
 /// {@youtube 560 315 https://www.youtube.com/watch?v=QzA4c4QHZCY}
 ///
-/// {@tool dartpad --template=stateful_widget_scaffold}
-///
+/// {@tool dartpad}
 /// The following example has a [Draggable] widget along with a [DragTarget]
 /// in a row demonstrating an incremented `acceptedData` integer value when
 /// you drag the element to the target.
 ///
-/// ```dart
-/// int acceptedData = 0;
-///
-/// @override
-/// Widget build(BuildContext context) {
-///   return Row(
-///     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-///     children: <Widget>[
-///       Draggable<int>(
-///         // Data is the value this Draggable stores.
-///         data: 10,
-///         child: Container(
-///           height: 100.0,
-///           width: 100.0,
-///           color: Colors.lightGreenAccent,
-///           child: const Center(
-///             child: Text('Draggable'),
-///           ),
-///         ),
-///         feedback: Container(
-///           color: Colors.deepOrange,
-///           height: 100,
-///           width: 100,
-///           child: const Icon(Icons.directions_run),
-///         ),
-///         childWhenDragging: Container(
-///           height: 100.0,
-///           width: 100.0,
-///           color: Colors.pinkAccent,
-///           child: const Center(
-///             child: Text('Child When Dragging'),
-///           ),
-///         ),
-///       ),
-///       DragTarget<int>(
-///         builder: (
-///           BuildContext context,
-///           List<dynamic> accepted,
-///           List<dynamic> rejected,
-///         ) {
-///           return Container(
-///             height: 100.0,
-///             width: 100.0,
-///             color: Colors.cyan,
-///             child: Center(
-///               child: Text('Value is updated to: $acceptedData'),
-///             ),
-///           );
-///         },
-///         onAccept: (int data) {
-///           setState(() {
-///             acceptedData += data;
-///           });
-///         },
-///       ),
-///     ],
-///   );
-/// }
-///
-/// ```
-///
+/// ** See code in examples/api/lib/widgets/drag_target/draggable.0.dart **
 /// {@end-tool}
 ///
 /// See also:
@@ -458,7 +398,7 @@ class Draggable<T extends Object> extends StatefulWidget {
   /// Subclasses can override this function to customize when they start
   /// recognizing a drag.
   @protected
-  MultiDragGestureRecognizer<MultiDragPointerState> createRecognizer(GestureMultiDragStartCallback onStart) {
+  MultiDragGestureRecognizer createRecognizer(GestureMultiDragStartCallback onStart) {
     switch (affinity) {
       case Axis.horizontal:
         return HorizontalMultiDragGestureRecognizer()..onStart = onStart;
@@ -470,7 +410,7 @@ class Draggable<T extends Object> extends StatefulWidget {
   }
 
   @override
-  _DraggableState<T> createState() => _DraggableState<T>();
+  State<Draggable<T>> createState() => _DraggableState<T>();
 }
 
 /// Makes its child draggable starting from long press.
@@ -559,6 +499,12 @@ class _DraggableState<T extends Object> extends State<Draggable<T>> {
   void dispose() {
     _disposeRecognizerIfInactive();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    _recognizer!.gestureSettings = MediaQuery.maybeOf(context)?.gestureSettings;
+    super.didChangeDependencies();
   }
 
   // This gesture recognizer has an unusual lifetime. We want to support the use
@@ -773,7 +719,7 @@ class DragTarget<T extends Object> extends StatefulWidget {
   final HitTestBehavior hitTestBehavior;
 
   @override
-  _DragTargetState<T> createState() => _DragTargetState<T>();
+  State<DragTarget<T>> createState() => _DragTargetState<T>();
 }
 
 List<T?> _mapAvatarsToData<T extends Object>(List<_DragAvatar<Object>> avatars) {
@@ -919,7 +865,7 @@ class _DragAvatar<T extends Object> extends Drag {
     _lastOffset = globalPosition - dragStartPoint;
     _entry!.markNeedsBuild();
     final HitTestResult result = HitTestResult();
-    WidgetsBinding.instance!.hitTest(result, globalPosition + feedbackOffset);
+    WidgetsBinding.instance.hitTest(result, globalPosition + feedbackOffset);
 
     final List<_DragTargetState<Object>> targets = _getDragTargets(result.path).toList();
 
@@ -966,17 +912,19 @@ class _DragAvatar<T extends Object> extends Drag {
     _activeTarget = newTarget;
   }
 
-  Iterable<_DragTargetState<Object>> _getDragTargets(Iterable<HitTestEntry> path) sync* {
+  Iterable<_DragTargetState<Object>> _getDragTargets(Iterable<HitTestEntry> path) {
     // Look for the RenderBoxes that corresponds to the hit target (the hit target
     // widgets build RenderMetaData boxes for us for this purpose).
+    final List<_DragTargetState<Object>> targets = <_DragTargetState<Object>>[];
     for (final HitTestEntry entry in path) {
       final HitTestTarget target = entry.target;
       if (target is RenderMetaData) {
         final dynamic metaData = target.metaData;
         if (metaData is _DragTargetState && metaData.isExpectedDataType(data, T))
-          yield metaData;
+          targets.add(metaData);
       }
     }
+    return targets;
   }
 
   void _leaveAllEntered() {
@@ -1007,8 +955,8 @@ class _DragAvatar<T extends Object> extends Drag {
       left: _lastOffset!.dx - overlayTopLeft.dx,
       top: _lastOffset!.dy - overlayTopLeft.dy,
       child: IgnorePointer(
-        child: feedback,
         ignoringSemantics: ignoringFeedbackSemantics,
+        child: feedback,
       ),
     );
   }

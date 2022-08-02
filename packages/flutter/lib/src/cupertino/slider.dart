@@ -35,6 +35,12 @@ import 'thumb_painter.dart';
 /// that use a slider will listen for the [onChanged] callback and rebuild the
 /// slider with a new [value] to update the visual appearance of the slider.
 ///
+/// {@tool dartpad}
+/// This example shows how to show the current slider value as it changes.
+///
+/// ** See code in examples/api/lib/cupertino/slider/cupertino_slider.0.dart **
+/// {@end-tool}
+///
 /// See also:
 ///
 ///  * <https://developer.apple.com/ios/human-interface-guidelines/controls/sliders/>
@@ -205,7 +211,7 @@ class CupertinoSlider extends StatefulWidget {
   final Color thumbColor;
 
   @override
-  _CupertinoSliderState createState() => _CupertinoSliderState();
+  State<CupertinoSlider> createState() => _CupertinoSliderState();
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {

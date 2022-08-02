@@ -35,7 +35,7 @@ import 'theme_data.dart';
 /// ```dart
 /// ElevatedButton(
 ///   style: ButtonStyle(
-///     backgroundColor: MaterialStateProperty.resolveWith<Color>(
+///     backgroundColor: MaterialStateProperty.resolveWith<Color?>(
 ///       (Set<MaterialState> states) {
 ///         if (states.contains(MaterialState.pressed))
 ///           return Theme.of(context).colorScheme.primary.withOpacity(0.5);
@@ -44,7 +44,7 @@ import 'theme_data.dart';
 ///     ),
 ///   ),
 /// )
-///```
+/// ```
 ///
 /// In this case the background color for all other button states would fallback
 /// to the ElevatedButton’s default values. To unconditionally set the button's
@@ -56,7 +56,7 @@ import 'theme_data.dart';
 ///     backgroundColor: MaterialStateProperty.all<Color>(Colors.green),
 ///   ),
 /// )
-///```
+/// ```
 ///
 /// Configuring a ButtonStyle directly makes it possible to very
 /// precisely control the button’s visual attributes for all states.
@@ -77,7 +77,7 @@ import 'theme_data.dart';
 /// TextButton(
 ///   style: TextButton.styleFrom(primary: Colors.green),
 /// )
-///```
+/// ```
 ///
 /// To configure all of the application's text buttons in the same
 /// way, specify the overall theme's `textButtonTheme`:
@@ -90,7 +90,28 @@ import 'theme_data.dart';
 ///   ),
 ///   home: MyAppHome(),
 /// )
-///```
+/// ```
+///
+/// ## Material 3 button types
+///
+/// Material Design 3 specifies five types of common buttons. Flutter provides
+/// support for these using the following button classes:
+/// <style>table,td,th { border-collapse: collapse; padding: 0.45em; } td { border: 1px solid }</style>
+///
+/// | Type         | Flutter implementation  |
+/// | :----------- | :---------------------- |
+/// | Elevated     | [ElevatedButton]        |
+/// | Filled       | Styled [ElevatedButton] |
+/// | Filled Tonal | Styled [ElevatedButton] |
+/// | Outlined     | [OutlinedButton]        |
+/// | Text         | [TextButton]            |
+///
+/// {@tool dartpad}
+/// This sample shows how to create each of the Material 3 button types with Flutter.
+///
+/// ** See code in examples/api/lib/material/button_style/button_style.0.dart **
+/// {@end-tool}
+///
 /// See also:
 ///
 ///  * [TextButtonTheme], the theme for [TextButton]s.
@@ -105,10 +126,12 @@ class ButtonStyle with Diagnosticable {
     this.foregroundColor,
     this.overlayColor,
     this.shadowColor,
+    this.surfaceTintColor,
     this.elevation,
     this.padding,
     this.minimumSize,
     this.fixedSize,
+    this.maximumSize,
     this.side,
     this.shape,
     this.mouseCursor,
@@ -149,6 +172,11 @@ class ButtonStyle with Diagnosticable {
   /// [ThemeData.applyElevationOverlayColor].
   final MaterialStateProperty<Color?>? shadowColor;
 
+  /// The surface tint color of the button's [Material].
+  ///
+  /// See [Material.surfaceTintColor] for more details.
+  final MaterialStateProperty<Color?>? surfaceTintColor;
+
   /// The elevation of the button's [Material].
   final MaterialStateProperty<double?>? elevation;
 
@@ -159,17 +187,28 @@ class ButtonStyle with Diagnosticable {
   ///
   /// The size of the rectangle the button lies within may be larger
   /// per [tapTargetSize].
+  ///
+  /// This value must be less than or equal to [maximumSize].
   final MaterialStateProperty<Size?>? minimumSize;
 
   /// The button's size.
   ///
-  /// This size is still constrained by the style's [minimumSize]. Fixed
-  /// size dimensions whose value is [double.infinity] are ignored.
+  /// This size is still constrained by the style's [minimumSize]
+  /// and [maximumSize]. Fixed size dimensions whose value is
+  /// [double.infinity] are ignored.
   ///
   /// To specify buttons with a fixed width and the default height use
   /// `fixedSize: Size.fromWidth(320)`. Similarly, to specify a fixed
   /// height and the default width use `fixedSize: Size.fromHeight(100)`.
   final MaterialStateProperty<Size?>? fixedSize;
+
+  /// The maximum size of the button itself.
+  ///
+  /// A [Size.infinite] or null value for this property means that
+  /// the button's maximum size is not constrained.
+  ///
+  /// This value must be greater than or equal to [minimumSize].
+  final MaterialStateProperty<Size?>? maximumSize;
 
   /// The color and weight of the button's outline.
   ///
@@ -255,10 +294,12 @@ class ButtonStyle with Diagnosticable {
     MaterialStateProperty<Color?>? foregroundColor,
     MaterialStateProperty<Color?>? overlayColor,
     MaterialStateProperty<Color?>? shadowColor,
+    MaterialStateProperty<Color?>? surfaceTintColor,
     MaterialStateProperty<double?>? elevation,
     MaterialStateProperty<EdgeInsetsGeometry?>? padding,
     MaterialStateProperty<Size?>? minimumSize,
     MaterialStateProperty<Size?>? fixedSize,
+    MaterialStateProperty<Size?>? maximumSize,
     MaterialStateProperty<BorderSide?>? side,
     MaterialStateProperty<OutlinedBorder?>? shape,
     MaterialStateProperty<MouseCursor?>? mouseCursor,
@@ -275,10 +316,12 @@ class ButtonStyle with Diagnosticable {
       foregroundColor: foregroundColor ?? this.foregroundColor,
       overlayColor: overlayColor ?? this.overlayColor,
       shadowColor: shadowColor ?? this.shadowColor,
+      surfaceTintColor: surfaceTintColor ?? this.surfaceTintColor,
       elevation: elevation ?? this.elevation,
       padding: padding ?? this.padding,
       minimumSize: minimumSize ?? this.minimumSize,
       fixedSize: fixedSize ?? this.fixedSize,
+      maximumSize: maximumSize ?? this.maximumSize,
       side: side ?? this.side,
       shape: shape ?? this.shape,
       mouseCursor: mouseCursor ?? this.mouseCursor,
@@ -305,10 +348,12 @@ class ButtonStyle with Diagnosticable {
       foregroundColor: foregroundColor ?? style.foregroundColor,
       overlayColor: overlayColor ?? style.overlayColor,
       shadowColor: shadowColor ?? style.shadowColor,
+      surfaceTintColor: surfaceTintColor ?? style.surfaceTintColor,
       elevation: elevation ?? style.elevation,
       padding: padding ?? style.padding,
       minimumSize: minimumSize ?? style.minimumSize,
       fixedSize: fixedSize ?? style.fixedSize,
+      maximumSize: maximumSize ?? style.maximumSize,
       side: side ?? style.side,
       shape: shape ?? style.shape,
       mouseCursor: mouseCursor ?? style.mouseCursor,
@@ -322,28 +367,28 @@ class ButtonStyle with Diagnosticable {
   }
 
   @override
-  int get hashCode {
-    return hashValues(
-      textStyle,
-      backgroundColor,
-      foregroundColor,
-      overlayColor,
-      shadowColor,
-      elevation,
-      padding,
-      minimumSize,
-      fixedSize,
-      side,
-      shape,
-      mouseCursor,
-      visualDensity,
-      tapTargetSize,
-      animationDuration,
-      enableFeedback,
-      alignment,
-      splashFactory,
-    );
-  }
+  int get hashCode => Object.hash(
+    textStyle,
+    backgroundColor,
+    foregroundColor,
+    overlayColor,
+    shadowColor,
+    surfaceTintColor,
+    elevation,
+    padding,
+    minimumSize,
+    fixedSize,
+    maximumSize,
+    side,
+    shape,
+    mouseCursor,
+    visualDensity,
+    tapTargetSize,
+    animationDuration,
+    enableFeedback,
+    alignment,
+    splashFactory,
+  );
 
   @override
   bool operator ==(Object other) {
@@ -357,10 +402,12 @@ class ButtonStyle with Diagnosticable {
         && other.foregroundColor == foregroundColor
         && other.overlayColor == overlayColor
         && other.shadowColor == shadowColor
+        && other.surfaceTintColor == surfaceTintColor
         && other.elevation == elevation
         && other.padding == padding
         && other.minimumSize == minimumSize
         && other.fixedSize == fixedSize
+        && other.maximumSize == maximumSize
         && other.side == side
         && other.shape == shape
         && other.mouseCursor == mouseCursor
@@ -380,10 +427,12 @@ class ButtonStyle with Diagnosticable {
     properties.add(DiagnosticsProperty<MaterialStateProperty<Color?>>('foregroundColor', foregroundColor, defaultValue: null));
     properties.add(DiagnosticsProperty<MaterialStateProperty<Color?>>('overlayColor', overlayColor, defaultValue: null));
     properties.add(DiagnosticsProperty<MaterialStateProperty<Color?>>('shadowColor', shadowColor, defaultValue: null));
+    properties.add(DiagnosticsProperty<MaterialStateProperty<Color?>>('surfaceTintColor', surfaceTintColor, defaultValue: null));
     properties.add(DiagnosticsProperty<MaterialStateProperty<double?>>('elevation', elevation, defaultValue: null));
     properties.add(DiagnosticsProperty<MaterialStateProperty<EdgeInsetsGeometry?>>('padding', padding, defaultValue: null));
     properties.add(DiagnosticsProperty<MaterialStateProperty<Size?>>('minimumSize', minimumSize, defaultValue: null));
     properties.add(DiagnosticsProperty<MaterialStateProperty<Size?>>('fixedSize', fixedSize, defaultValue: null));
+    properties.add(DiagnosticsProperty<MaterialStateProperty<Size?>>('maximumSize', maximumSize, defaultValue: null));
     properties.add(DiagnosticsProperty<MaterialStateProperty<BorderSide?>>('side', side, defaultValue: null));
     properties.add(DiagnosticsProperty<MaterialStateProperty<OutlinedBorder?>>('shape', shape, defaultValue: null));
     properties.add(DiagnosticsProperty<MaterialStateProperty<MouseCursor?>>('mouseCursor', mouseCursor, defaultValue: null));
@@ -405,10 +454,12 @@ class ButtonStyle with Diagnosticable {
       foregroundColor:  _lerpProperties<Color?>(a?.foregroundColor, b?.foregroundColor, t, Color.lerp),
       overlayColor: _lerpProperties<Color?>(a?.overlayColor, b?.overlayColor, t, Color.lerp),
       shadowColor: _lerpProperties<Color?>(a?.shadowColor, b?.shadowColor, t, Color.lerp),
+      surfaceTintColor: _lerpProperties<Color?>(a?.surfaceTintColor, b?.surfaceTintColor, t, Color.lerp),
       elevation: _lerpProperties<double?>(a?.elevation, b?.elevation, t, lerpDouble),
       padding:  _lerpProperties<EdgeInsetsGeometry?>(a?.padding, b?.padding, t, EdgeInsetsGeometry.lerp),
       minimumSize: _lerpProperties<Size?>(a?.minimumSize, b?.minimumSize, t, Size.lerp),
       fixedSize: _lerpProperties<Size?>(a?.fixedSize, b?.fixedSize, t, Size.lerp),
+      maximumSize: _lerpProperties<Size?>(a?.maximumSize, b?.maximumSize, t, Size.lerp),
       side: _lerpSides(a?.side, b?.side, t),
       shape: _lerpShapes(a?.shape, b?.shape, t),
       mouseCursor: t < 0.5 ? a?.mouseCursor : b?.mouseCursor,

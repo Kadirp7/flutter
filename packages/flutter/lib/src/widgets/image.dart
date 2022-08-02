@@ -8,7 +8,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
 
 import 'basic.dart';
@@ -120,7 +119,7 @@ Future<void> precacheImage(
       // Give callers until at least the end of the frame to subscribe to the
       // image stream.
       // See ImageCache._liveImages
-      SchedulerBinding.instance!.addPostFrameCallback((Duration timeStamp) {
+      SchedulerBinding.instance.addPostFrameCallback((Duration timeStamp) {
         stream.removeListener(listener!);
       });
     },
@@ -238,14 +237,14 @@ typedef ImageErrorWidgetBuilder = Widget Function(
 /// Several constructors are provided for the various ways that an image can be
 /// specified:
 ///
-///  * [new Image], for obtaining an image from an [ImageProvider].
-///  * [new Image.asset], for obtaining an image from an [AssetBundle]
+///  * [Image.new], for obtaining an image from an [ImageProvider].
+///  * [Image.asset], for obtaining an image from an [AssetBundle]
 ///    using a key.
-///  * [new Image.network], for obtaining an image from a URL.
-///  * [new Image.file], for obtaining an image from a [File].
-///  * [new Image.memory], for obtaining an image from a [Uint8List].
+///  * [Image.network], for obtaining an image from a URL.
+///  * [Image.file], for obtaining an image from a [File].
+///  * [Image.memory], for obtaining an image from a [Uint8List].
 ///
-/// The following image formats are supported: {@macro flutter.dart:ui.imageFormats}
+/// The following image formats are supported: {@macro dart.ui.imageFormats}
 ///
 /// To automatically perform pixel-density-aware asset resolution, specify the
 /// image using an [AssetImage] and make sure that a [MaterialApp], [WidgetsApp],
@@ -293,7 +292,7 @@ typedef ImageErrorWidgetBuilder = Widget Function(
 /// See also:
 ///
 ///  * [Icon], which shows an image from a font.
-///  * [new Ink.image], which is the preferred way to show an image in a
+///  * [Ink.image], which is the preferred way to show an image in a
 ///    material application (especially if the image is in a [Material] and will
 ///    have an [InkWell] on top of it).
 ///  * [Image](dart-ui/Image-class.html), the class in the [dart:ui] library.
@@ -304,7 +303,7 @@ class Image extends StatefulWidget {
   /// Creates a widget that displays an image.
   ///
   /// To show an image from the network or from an asset bundle, consider using
-  /// [new Image.network] and [new Image.asset] respectively.
+  /// [Image.network] and [Image.asset] respectively.
   ///
   /// The [image], [alignment], [repeat], and [matchTextDirection] arguments
   /// must not be null.
@@ -330,6 +329,7 @@ class Image extends StatefulWidget {
     this.width,
     this.height,
     this.color,
+    this.opacity,
     this.colorBlendMode,
     this.fit,
     this.alignment = Alignment.center,
@@ -389,6 +389,7 @@ class Image extends StatefulWidget {
     this.width,
     this.height,
     this.color,
+    this.opacity,
     this.colorBlendMode,
     this.fit,
     this.alignment = Alignment.center,
@@ -451,6 +452,7 @@ class Image extends StatefulWidget {
     this.width,
     this.height,
     this.color,
+    this.opacity,
     this.colorBlendMode,
     this.fit,
     this.alignment = Alignment.center,
@@ -462,7 +464,14 @@ class Image extends StatefulWidget {
     this.filterQuality = FilterQuality.low,
     int? cacheWidth,
     int? cacheHeight,
-  }) : image = ResizeImage.resizeIfNeeded(cacheWidth, cacheHeight, FileImage(file, scale: scale)),
+  }) :
+       // FileImage is not supported on Flutter Web therefore neither this method.
+       assert(
+         !kIsWeb,
+         'Image.file is not supported on Flutter Web. '
+         'Consider using either Image.asset or Image.network instead.',
+        ),
+       image = ResizeImage.resizeIfNeeded(cacheWidth, cacheHeight, FileImage(file, scale: scale)),
        loadingBuilder = null,
        assert(alignment != null),
        assert(repeat != null),
@@ -612,6 +621,7 @@ class Image extends StatefulWidget {
     this.width,
     this.height,
     this.color,
+    this.opacity,
     this.colorBlendMode,
     this.fit,
     this.alignment = Alignment.center,
@@ -644,7 +654,7 @@ class Image extends StatefulWidget {
   ///
   /// The `bytes` argument specifies encoded image bytes, which can be encoded
   /// in any of the following supported image formats:
-  /// {@macro flutter.dart:ui.imageFormats}
+  /// {@macro dart.ui.imageFormats}
   ///
   /// The `scale` argument specifies the linear scale factor for drawing this
   /// image at its intended size and applies to both the width and the height.
@@ -681,6 +691,7 @@ class Image extends StatefulWidget {
     this.width,
     this.height,
     this.color,
+    this.opacity,
     this.colorBlendMode,
     this.fit,
     this.alignment = Alignment.center,
@@ -752,40 +763,14 @@ class Image extends StatefulWidget {
   /// ```
   /// {@endtemplate}
   ///
-  /// {@tool dartpad --template=stateless_widget_material}
-  ///
+  /// {@tool dartpad}
   /// The following sample demonstrates how to use this builder to implement an
   /// image that fades in once it's been loaded.
   ///
   /// This sample contains a limited subset of the functionality that the
   /// [FadeInImage] widget provides out of the box.
   ///
-  /// ```dart
-  /// @override
-  /// Widget build(BuildContext context) {
-  ///   return DecoratedBox(
-  ///     decoration: BoxDecoration(
-  ///       color: Colors.white,
-  ///       border: Border.all(),
-  ///       borderRadius: BorderRadius.circular(20),
-  ///     ),
-  ///     child: Image.network(
-  ///       'https://flutter.github.io/assets-for-api-docs/assets/widgets/puffin.jpg',
-  ///       frameBuilder: (BuildContext context, Widget child, int? frame, bool wasSynchronouslyLoaded) {
-  ///         if (wasSynchronouslyLoaded) {
-  ///           return child;
-  ///         }
-  ///         return AnimatedOpacity(
-  ///           child: child,
-  ///           opacity: frame == null ? 0 : 1,
-  ///           duration: const Duration(seconds: 1),
-  ///           curve: Curves.easeOut,
-  ///         );
-  ///       },
-  ///     ),
-  ///   );
-  /// }
-  /// ```
+  /// ** See code in examples/api/lib/widgets/image/image.frame_builder.0.dart **
   /// {@end-tool}
   final ImageFrameBuilder? frameBuilder;
 
@@ -818,37 +803,11 @@ class Image extends StatefulWidget {
   ///
   /// {@macro flutter.widgets.Image.frameBuilder.chainedBuildersExample}
   ///
-  /// {@tool dartpad --template=stateless_widget_material}
-  ///
+  /// {@tool dartpad}
   /// The following sample uses [loadingBuilder] to show a
   /// [CircularProgressIndicator] while an image loads over the network.
   ///
-  /// ```dart
-  /// Widget build(BuildContext context) {
-  ///   return DecoratedBox(
-  ///     decoration: BoxDecoration(
-  ///       color: Colors.white,
-  ///       border: Border.all(),
-  ///       borderRadius: BorderRadius.circular(20),
-  ///     ),
-  ///     child: Image.network(
-  ///       'https://example.com/image.jpg',
-  ///       loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-  ///         if (loadingProgress == null) {
-  ///           return child;
-  ///         }
-  ///         return Center(
-  ///           child: CircularProgressIndicator(
-  ///             value: loadingProgress.expectedTotalBytes != null
-  ///                 ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-  ///                 : null,
-  ///           ),
-  ///         );
-  ///       },
-  ///     ),
-  ///   );
-  /// }
-  /// ```
+  /// ** See code in examples/api/lib/widgets/image/image.loading_builder.0.dart **
   /// {@end-tool}
   ///
   /// Run against a real-world image on a slow network, the previous example
@@ -864,34 +823,11 @@ class Image extends StatefulWidget {
   /// [FlutterError.onError]. If it is provided, the caller should either handle
   /// the exception by providing a replacement widget, or rethrow the exception.
   ///
-  /// {@tool dartpad --template=stateless_widget_material}
-  ///
+  /// {@tool dartpad}
   /// The following sample uses [errorBuilder] to show a '😢' in place of the
   /// image that fails to load, and prints the error to the console.
   ///
-  /// ```dart
-  /// Widget build(BuildContext context) {
-  ///   return DecoratedBox(
-  ///     decoration: BoxDecoration(
-  ///       color: Colors.white,
-  ///       border: Border.all(),
-  ///       borderRadius: BorderRadius.circular(20),
-  ///     ),
-  ///     child: Image.network(
-  ///       'https://example.does.not.exist/image.jpg',
-  ///       errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-  ///         // Appropriate logging or analytics, e.g.
-  ///         // myAnalytics.recordError(
-  ///         //   'An error occurred loading "https://example.does.not.exist/image.jpg"',
-  ///         //   exception,
-  ///         //   stackTrace,
-  ///         // );
-  ///         return const Text('😢');
-  ///       },
-  ///     ),
-  ///   );
-  /// }
-  /// ```
+  /// ** See code in examples/api/lib/widgets/image/image.error_builder.0.dart **
   /// {@end-tool}
   final ImageErrorWidgetBuilder? errorBuilder;
 
@@ -921,6 +857,20 @@ class Image extends StatefulWidget {
 
   /// If non-null, this color is blended with each image pixel using [colorBlendMode].
   final Color? color;
+
+  /// If non-null, the value from the [Animation] is multiplied with the opacity
+  /// of each image pixel before painting onto the canvas.
+  ///
+  /// This is more efficient than using [FadeTransition] to change the opacity
+  /// of an image, since this avoids creating a new composited layer. Composited
+  /// layers may double memory usage as the image is painted onto an offscreen
+  /// render target.
+  ///
+  /// See also:
+  ///
+  ///  * [AlwaysStoppedAnimation], which allows you to create an [Animation]
+  ///    from a single opacity value.
+  final Animation<double>? opacity;
 
   /// The rendering quality of the image.
   ///
@@ -1060,7 +1010,7 @@ class Image extends StatefulWidget {
   final bool isAntiAlias;
 
   @override
-  _ImageState createState() => _ImageState();
+  State<Image> createState() => _ImageState();
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -1071,6 +1021,7 @@ class Image extends StatefulWidget {
     properties.add(DoubleProperty('width', width, defaultValue: null));
     properties.add(DoubleProperty('height', height, defaultValue: null));
     properties.add(ColorProperty('color', color, defaultValue: null));
+    properties.add(DiagnosticsProperty<Animation<double>?>('opacity', opacity, defaultValue: null));
     properties.add(EnumProperty<BlendMode>('colorBlendMode', colorBlendMode, defaultValue: null));
     properties.add(EnumProperty<BoxFit>('fit', fit, defaultValue: null));
     properties.add(DiagnosticsProperty<AlignmentGeometry>('alignment', alignment, defaultValue: null));
@@ -1099,14 +1050,14 @@ class _ImageState extends State<Image> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance!.addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
     _scrollAwareContext = DisposableBuildContext<State<Image>>(this);
   }
 
   @override
   void dispose() {
     assert(_imageStream != null);
-    WidgetsBinding.instance!.removeObserver(this);
+    WidgetsBinding.instance.removeObserver(this);
     _stopListeningToStream();
     _completerHandle?.dispose();
     _scrollAwareContext.dispose();
@@ -1156,7 +1107,7 @@ class _ImageState extends State<Image> with WidgetsBindingObserver {
 
   void _updateInvertColors() {
     _invertColors = MediaQuery.maybeOf(context)?.invertColors
-        ?? SemanticsBinding.instance!.accessibilityFeatures.invertColors;
+        ?? SemanticsBinding.instance.accessibilityFeatures.invertColors;
   }
 
   void _resolveImage() {
@@ -1188,8 +1139,10 @@ class _ImageState extends State<Image> with WidgetsBindingObserver {
                   _lastStack = stackTrace;
                 });
                 assert(() {
-                  if (widget.errorBuilder == null)
+                  if (widget.errorBuilder == null) {
+                    // ignore: only_throw_errors, since we're just proxying the error.
                     throw error; // Ensures the error message is printed to the console.
+                  }
                   return true;
                 }());
               }
@@ -1326,6 +1279,7 @@ class _ImageState extends State<Image> with WidgetsBindingObserver {
       height: widget.height,
       scale: _imageInfo?.scale ?? 1.0,
       color: widget.color,
+      opacity: widget.opacity,
       colorBlendMode: widget.colorBlendMode,
       fit: widget.fit,
       alignment: widget.alignment,

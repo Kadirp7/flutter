@@ -13,11 +13,11 @@ import '../image_data.dart';
 import '../rendering/rendering_tester.dart';
 
 void main() {
-  TestRenderingFlutterBinding();
+  TestRenderingFlutterBinding.ensureInitialized();
 
   tearDown(() {
-    PaintingBinding.instance!.imageCache!.clear();
-    PaintingBinding.instance!.imageCache!.clearLiveImages();
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
   });
 
   test('ResizeImage resizes to the correct dimensions (up)', () async {
@@ -87,7 +87,7 @@ void main() {
   test('ResizeImage takes one dim', () async {
     final Uint8List bytes = Uint8List.fromList(kTransparentImage);
     final MemoryImage memoryImage = MemoryImage(bytes);
-    final ResizeImage resizeImage = ResizeImage(memoryImage, width: 10, height: null);
+    final ResizeImage resizeImage = ResizeImage(memoryImage, width: 10);
     expect(resizeImage.width, 10);
     expect(resizeImage.height, null);
     expect(resizeImage.imageProvider, memoryImage);
@@ -103,7 +103,7 @@ void main() {
       expect(cacheWidth, 123);
       expect(cacheHeight, 321);
       expect(allowUpscaling, false);
-      return PaintingBinding.instance!.instantiateImageCodec(bytes, cacheWidth: cacheWidth, cacheHeight: cacheHeight, allowUpscaling: allowUpscaling);
+      return PaintingBinding.instance.instantiateImageCodec(bytes, cacheWidth: cacheWidth, cacheHeight: cacheHeight, allowUpscaling: allowUpscaling);
     }
 
     resizeImage.load(await resizeImage.obtainKey(ImageConfiguration.empty), decode);
@@ -136,8 +136,10 @@ void main() {
   });
 }
 
-Future<Size> _resolveAndGetSize(ImageProvider imageProvider,
-    {ImageConfiguration configuration = ImageConfiguration.empty}) async {
+Future<Size> _resolveAndGetSize(
+  ImageProvider imageProvider, {
+  ImageConfiguration configuration = ImageConfiguration.empty,
+}) async {
   final ImageStream stream = imageProvider.resolve(configuration);
   final Completer<Size> completer = Completer<Size>();
   final ImageStreamListener listener =

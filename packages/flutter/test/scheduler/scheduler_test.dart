@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import 'dart:async';
-import 'dart:ui' show window;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -134,22 +133,28 @@ void main() {
     for (final VoidCallback timer in timerQueueTasks) {
       timer();
     }
+
+    // As events are locked, make scheduleTask execute after the test or it
+    // will execute during following tests and risk failure.
+    addTearDown(() => scheduler.handleEventLoopCallback());
   });
 
   test('Flutter.Frame event fired', () async {
-    window.onReportTimings!(<FrameTiming>[FrameTiming(
+    SchedulerBinding.instance.platformDispatcher.onReportTimings!(<FrameTiming>[FrameTiming(
       vsyncStart: 5000,
       buildStart: 10000,
       buildFinish: 15000,
       rasterStart: 16000,
       rasterFinish: 20000,
+      rasterFinishWallTime: 20010,
+      frameNumber: 1991
     )]);
 
     final List<Map<String, dynamic>> events = scheduler.getEventsDispatched('Flutter.Frame');
     expect(events, hasLength(1));
 
     final Map<String, dynamic> event = events.first;
-    expect(event['number'], isNonNegative);
+    expect(event['number'], 1991);
     expect(event['startTime'], 10000);
     expect(event['elapsed'], 15000);
     expect(event['build'], 5000);
@@ -162,10 +167,10 @@ void main() {
     FlutterError.onError = (FlutterErrorDetails details) {
       errorCaught = details;
     };
-    SchedulerBinding.instance!.addTimingsCallback((List<FrameTiming> timings) {
+    SchedulerBinding.instance.addTimingsCallback((List<FrameTiming> timings) {
       throw Exception('Test');
     });
-    window.onReportTimings!(<FrameTiming>[]);
+    SchedulerBinding.instance.platformDispatcher.onReportTimings!(<FrameTiming>[]);
     expect(errorCaught!.exceptionAsString(), equals('Exception: Test'));
   });
 
@@ -227,9 +232,9 @@ void main() {
     // Simulate an animation frame firing between warm-up begin frame and warm-up draw frame.
     // Expect a timer that reschedules the frame.
     expect(scheduler.hasScheduledFrame, isFalse);
-    window.onBeginFrame!(Duration.zero);
+    SchedulerBinding.instance.platformDispatcher.onBeginFrame!(Duration.zero);
     expect(scheduler.hasScheduledFrame, isFalse);
-    window.onDrawFrame!();
+    SchedulerBinding.instance.platformDispatcher.onDrawFrame!();
     expect(scheduler.hasScheduledFrame, isFalse);
 
     // The draw frame part of the warm-up frame will run the post-frame

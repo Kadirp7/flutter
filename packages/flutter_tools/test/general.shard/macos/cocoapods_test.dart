@@ -11,9 +11,9 @@ import 'package:flutter_tools/src/base/logger.dart';
 import 'package:flutter_tools/src/base/platform.dart';
 import 'package:flutter_tools/src/build_info.dart';
 import 'package:flutter_tools/src/cache.dart';
+import 'package:flutter_tools/src/flutter_plugins.dart';
 import 'package:flutter_tools/src/ios/xcodeproj.dart';
 import 'package:flutter_tools/src/macos/cocoapods.dart';
-import 'package:flutter_tools/src/plugins.dart';
 import 'package:flutter_tools/src/project.dart';
 import 'package:flutter_tools/src/reporting/reporting.dart';
 import 'package:test/fake.dart';
@@ -68,7 +68,7 @@ void main() {
   setUp(() async {
     Cache.flutterRoot = 'flutter';
     fileSystem = MemoryFileSystem.test();
-    fakeProcessManager = FakeProcessManager.list(<FakeCommand>[]);
+    fakeProcessManager = FakeProcessManager.empty();
     logger = BufferLogger.test();
     usage = TestUsage();
     cocoaPodsUnderTest = CocoaPods(
@@ -165,13 +165,13 @@ void main() {
 
     testWithoutContext('detects at recommended version', () async {
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('1.11.0');
       expect(await cocoaPodsUnderTest.evaluateCocoaPodsInstallation, CocoaPodsStatus.recommended);
     });
 
     testWithoutContext('detects above recommended version', () async {
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.1');
+      pretendPodVersionIs('1.11.1');
       expect(await cocoaPodsUnderTest.evaluateCocoaPodsInstallation, CocoaPodsStatus.recommended);
     });
   });
@@ -287,6 +287,32 @@ void main() {
       expect(releaseContents, isNot(contains('#include?')));
       expect(releaseContents, equals(legacyReleaseInclude));
     });
+
+    testUsingContext('does not include Pod config in xcconfig files, if flavor include present', () async {
+      final FlutterProject projectUnderTest = setupProjectUnderTest();
+      projectUnderTest.ios.podfile..createSync()..writeAsStringSync('Existing Podfile');
+
+      const String flavorDebugInclude = '#include? "Pods/Target Support Files/Pods-Free App/Pods-Free App.debug free.xcconfig"';
+      projectUnderTest.ios.xcodeConfigFor('Debug')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(flavorDebugInclude);
+      const String flavorReleaseInclude = '#include? "Pods/Target Support Files/Pods-Free App/Pods-Free App.release free.xcconfig"';
+      projectUnderTest.ios.xcodeConfigFor('Release')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(flavorReleaseInclude);
+
+      final FlutterProject project = FlutterProject.fromDirectoryTest(fileSystem.directory('project'));
+      await cocoaPodsUnderTest.setupPodfile(project.ios);
+
+      final String debugContents = projectUnderTest.ios.xcodeConfigFor('Debug').readAsStringSync();
+      // Redundant contains check, but this documents what we're testing--that the optional
+      // #include? doesn't get written in addition to the previous style #include.
+      expect(debugContents, isNot(contains('Pods-Runner/Pods-Runner.debug')));
+      expect(debugContents, equals(flavorDebugInclude));
+      final String releaseContents = projectUnderTest.ios.xcodeConfigFor('Release').readAsStringSync();
+      expect(releaseContents, isNot(contains('Pods-Runner/Pods-Runner.release')));
+      expect(releaseContents, equals(flavorReleaseInclude));
+    });
   });
 
   group('Update xcconfig', () {
@@ -372,7 +398,7 @@ void main() {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       fileSystem.file(fileSystem.path.join('project', 'ios', 'Podfile'))
         ..createSync()
-        ..writeAsStringSync('plugin_pods = parse_KV_file(\'../.flutter-plugins\')');
+        ..writeAsStringSync("plugin_pods = parse_KV_file('../.flutter-plugins')");
 
       await expectLater(cocoaPodsUnderTest.processPods(
         xcodeProject: projectUnderTest.ios,
@@ -384,7 +410,7 @@ void main() {
     testUsingContext('prints warning if macOS Podfile parses .flutter-plugins', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       fakeProcessManager.addCommands(const <FakeCommand>[
         FakeCommand(
           command: <String>['pod', 'install', '--verbose'],
@@ -396,7 +422,7 @@ void main() {
 
       projectUnderTest.macos.podfile
         ..createSync()
-        ..writeAsStringSync('plugin_pods = parse_KV_file(\'../.flutter-plugins\')');
+        ..writeAsStringSync("plugin_pods = parse_KV_file('../.flutter-plugins')");
       projectUnderTest.macos.podfileLock
         ..createSync()
         ..writeAsStringSync('Existing lock file.');
@@ -406,8 +432,8 @@ void main() {
         buildMode: BuildMode.debug,
       );
 
-      expect(logger.errorText, contains('Warning: Podfile is out of date'));
-      expect(logger.errorText, contains('rm macos/Podfile'));
+      expect(logger.warningText, contains('Warning: Podfile is out of date'));
+      expect(logger.warningText, contains('rm macos/Podfile'));
       expect(fakeProcessManager, hasNoRemainingExpectations);
     });
 
@@ -423,7 +449,7 @@ void main() {
     testUsingContext('throws, if specs repo is outdated.', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       fileSystem.file(fileSystem.path.join('project', 'ios', 'Podfile'))
         ..createSync()
         ..writeAsStringSync('Existing Podfile');
@@ -465,52 +491,58 @@ Note: as of CocoaPods 1.0, `pod repo update` does not happen on `pod install` by
       );
     });
 
-    testUsingContext('ffi failure on ARM macOS prompts gem install', () async {
-      final FlutterProject projectUnderTest = setupProjectUnderTest();
-      pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
-      fileSystem.file(fileSystem.path.join('project', 'ios', 'Podfile'))
-        ..createSync()
-        ..writeAsStringSync('Existing Podfile');
+    final Map<String, String> possibleErrors = <String, String>{
+      'symbol not found': 'LoadError - dlsym(0x7fbbeb6837d0, Init_ffi_c): symbol not found - /Library/Ruby/Gems/2.6.0/gems/ffi-1.13.1/lib/ffi_c.bundle',
+      'incompatible architecture': "LoadError - (mach-o file, but is an incompatible architecture (have 'arm64', need 'x86_64')), '/usr/lib/ffi_c.bundle' (no such file) - /Library/Ruby/Gems/2.6.0/gems/ffi-1.15.4/lib/ffi_c.bundle",
+    };
+    possibleErrors.forEach((String errorName, String cocoaPodsError) {
+      testUsingContext('ffi $errorName failure on ARM macOS prompts gem install', () async {
+        final FlutterProject projectUnderTest = setupProjectUnderTest();
+        pretendPodIsInstalled();
+        pretendPodVersionIs('100.0.0');
+        fileSystem.file(fileSystem.path.join('project', 'ios', 'Podfile'))
+          ..createSync()
+          ..writeAsStringSync('Existing Podfile');
 
-      fakeProcessManager.addCommands(<FakeCommand>[
-        const FakeCommand(
-          command: <String>['pod', 'install', '--verbose'],
-          workingDirectory: 'project/ios',
-          environment: <String, String>{
-            'COCOAPODS_DISABLE_STATS': 'true',
-            'LANG': 'en_US.UTF-8',
-          },
-          exitCode: 1,
-          stdout: 'LoadError - dlsym(0x7fbbeb6837d0, Init_ffi_c): symbol not found - /Library/Ruby/Gems/2.6.0/gems/ffi-1.13.1/lib/ffi_c.bundle',
-        ),
-        const FakeCommand(
-          command: <String>['which', 'sysctl'],
-        ),
-        const FakeCommand(
-          command: <String>['sysctl', 'hw.optional.arm64'],
-          stdout: 'hw.optional.arm64: 1',
-        ),
-      ]);
+        fakeProcessManager.addCommands(<FakeCommand>[
+          FakeCommand(
+            command: const <String>['pod', 'install', '--verbose'],
+            workingDirectory: 'project/ios',
+            environment: const <String, String>{
+              'COCOAPODS_DISABLE_STATS': 'true',
+              'LANG': 'en_US.UTF-8',
+            },
+            exitCode: 1,
+            stderr: cocoaPodsError,
+          ),
+          const FakeCommand(
+            command: <String>['which', 'sysctl'],
+          ),
+          const FakeCommand(
+            command: <String>['sysctl', 'hw.optional.arm64'],
+            stdout: 'hw.optional.arm64: 1',
+          ),
+        ]);
 
-      await expectToolExitLater(
-        cocoaPodsUnderTest.processPods(
-          xcodeProject: projectUnderTest.ios,
-          buildMode: BuildMode.debug,
-        ),
-        equals('Error running pod install'),
-      );
-      expect(
-        logger.errorText,
-        contains('set up CocoaPods for ARM macOS'),
-      );
-      expect(usage.events, contains(const TestUsageEvent('pod-install-failure', 'arm-ffi')));
+        await expectToolExitLater(
+          cocoaPodsUnderTest.processPods(
+            xcodeProject: projectUnderTest.ios,
+            buildMode: BuildMode.debug,
+          ),
+          equals('Error running pod install'),
+        );
+        expect(
+          logger.errorText,
+          contains('set up CocoaPods for ARM macOS'),
+        );
+        expect(usage.events, contains(const TestUsageEvent('pod-install-failure', 'arm-ffi')));
+      });
     });
 
     testUsingContext('ffi failure on x86 macOS does not prompt gem install', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       fileSystem.file(fileSystem.path.join('project', 'ios', 'Podfile'))
         ..createSync()
         ..writeAsStringSync('Existing Podfile');
@@ -554,7 +586,7 @@ Note: as of CocoaPods 1.0, `pod repo update` does not happen on `pod install` by
     testUsingContext('run pod install, if Podfile.lock is missing', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       projectUnderTest.ios.podfile
         ..createSync()
         ..writeAsStringSync('Existing Podfile');
@@ -581,7 +613,7 @@ Note: as of CocoaPods 1.0, `pod repo update` does not happen on `pod install` by
     testUsingContext('runs iOS pod install, if Manifest.lock is missing', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       projectUnderTest.ios.podfile
         ..createSync()
         ..writeAsStringSync('Existing Podfile');
@@ -610,7 +642,7 @@ Note: as of CocoaPods 1.0, `pod repo update` does not happen on `pod install` by
     testUsingContext('runs macOS pod install, if Manifest.lock is missing', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       projectUnderTest.macos.podfile
         ..createSync()
         ..writeAsStringSync('Existing Podfile');
@@ -639,7 +671,7 @@ Note: as of CocoaPods 1.0, `pod repo update` does not happen on `pod install` by
     testUsingContext('runs pod install, if Manifest.lock different from Podspec.lock', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       projectUnderTest.ios.podfile
         ..createSync()
         ..writeAsStringSync('Existing Podfile');
@@ -671,7 +703,7 @@ Note: as of CocoaPods 1.0, `pod repo update` does not happen on `pod install` by
     testUsingContext('runs pod install, if flutter framework changed', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       projectUnderTest.ios.podfile
         ..createSync()
         ..writeAsStringSync('Existing Podfile');
@@ -703,7 +735,7 @@ Note: as of CocoaPods 1.0, `pod repo update` does not happen on `pod install` by
     testUsingContext('runs pod install, if Podfile.lock is older than Podfile', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       projectUnderTest.ios.podfile
         ..createSync()
         ..writeAsStringSync('Existing Podfile');
@@ -757,7 +789,7 @@ Note: as of CocoaPods 1.0, `pod repo update` does not happen on `pod install` by
     testUsingContext('a failed pod install deletes Pods/Manifest.lock', () async {
       final FlutterProject projectUnderTest = setupProjectUnderTest();
       pretendPodIsInstalled();
-      pretendPodVersionIs('1.10.0');
+      pretendPodVersionIs('100.0.0');
       projectUnderTest.ios.podfile
         ..createSync()
         ..writeAsStringSync('Existing Podfile');
@@ -794,7 +826,7 @@ class FakeXcodeProjectInterpreter extends Fake implements XcodeProjectInterprete
   @override
   Future<Map<String, String>> getBuildSettings(
     String projectPath, {
-    String scheme,
+    XcodeProjectBuildContext buildContext,
     Duration timeout = const Duration(minutes: 1),
   }) async => buildSettings;
 

@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import 'arc.dart';
 import 'colors.dart';
@@ -16,6 +17,7 @@ import 'page.dart';
 import 'scaffold.dart' show ScaffoldMessenger, ScaffoldMessengerState;
 import 'scrollbar.dart';
 import 'theme.dart';
+import 'tooltip.dart';
 
 /// [MaterialApp] uses this [TextStyle] as its [DefaultTextStyle] to encourage
 /// developers to be intentional about their [DefaultTextStyle].
@@ -54,6 +56,11 @@ enum ThemeMode {
 /// required for material design applications. It builds upon a [WidgetsApp] by
 /// adding material-design specific functionality, such as [AnimatedTheme] and
 /// [GridPaper].
+///
+/// [MaterialApp] configures its [WidgetsApp.textStyle] with an ugly red/yellow
+/// text style that's intended to warn the developer that their app hasn't defined
+/// a default text style. Typically the app's [Scaffold] builds a [Material] widget
+/// whose default [Material.textStyle] defines the text style for the entire scaffold.
 ///
 /// The [MaterialApp] configures the top-level [Navigator] to search for routes
 /// in the following order:
@@ -143,6 +150,28 @@ enum ThemeMode {
 /// ```
 /// {@end-tool}
 ///
+/// ## Troubleshooting
+///
+/// ### Why is my app's text red with yellow underlines?
+///
+/// [Text] widgets that lack a [Material] ancestor will be rendered with an ugly
+/// red/yellow text style.
+///
+/// ![](https://flutter.github.io/assets-for-api-docs/assets/material/material_app_unspecified_textstyle.png)
+///
+/// The typical fix is to give the widget a [Scaffold] ancestor. The [Scaffold] creates
+/// a [Material] widget that defines its default text style.
+///
+/// ```dart
+/// MaterialApp(
+///   title: 'Material App',
+///   home: Scaffold(
+///     body: Center(
+///       child: Text('Hello World'),
+///     ),
+///   ),
+/// )
+/// ```
 /// See also:
 ///
 ///  * [Scaffold], which provides standard app elements like an [AppBar] and a [Drawer].
@@ -198,6 +227,7 @@ class MaterialApp extends StatefulWidget {
     this.actions,
     this.restorationScopeId,
     this.scrollBehavior,
+    this.useInheritedMediaQuery = false,
   }) : assert(routes != null),
        assert(navigatorObservers != null),
        assert(title != null),
@@ -245,6 +275,7 @@ class MaterialApp extends StatefulWidget {
     this.actions,
     this.restorationScopeId,
     this.scrollBehavior,
+    this.useInheritedMediaQuery = false,
   }) : assert(routeInformationParser != null),
        assert(routerDelegate != null),
        assert(title != null),
@@ -282,8 +313,9 @@ class MaterialApp extends StatefulWidget {
   ///
   /// When a named route is pushed with [Navigator.pushNamed], the route name is
   /// looked up in this map. If the name is present, the associated
-  /// [WidgetBuilder] is used to construct a [MaterialPageRoute] that performs
-  /// an appropriate transition, including [Hero] animations, to the new route.
+  /// [widgets.WidgetBuilder] is used to construct a [MaterialPageRoute] that
+  /// performs an appropriate transition, including [Hero] animations, to the
+  /// new route.
   ///
   /// {@macro flutter.widgets.widgetsApp.routes}
   final Map<String, WidgetBuilder>? routes;
@@ -555,7 +587,7 @@ class MaterialApp extends StatefulWidget {
   ///
   /// See also:
   ///
-  ///  * <https://flutter.dev/debugging/#performanceoverlay>
+  ///  * <https://flutter.dev/debugging/#performance-overlay>
   final bool showPerformanceOverlay;
 
   /// Turns on checkerboarding of raster cache images.
@@ -584,9 +616,9 @@ class MaterialApp extends StatefulWidget {
   /// ```dart
   /// Widget build(BuildContext context) {
   ///   return WidgetsApp(
-  ///     shortcuts: <LogicalKeySet, Intent>{
+  ///     shortcuts: <ShortcutActivator, Intent>{
   ///       ... WidgetsApp.defaultShortcuts,
-  ///       LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
+  ///       const SingleActivator(LogicalKeyboardKey.select): const ActivateIntent(),
   ///     },
   ///     color: const Color(0xFFFF0000),
   ///     builder: (BuildContext context, Widget? child) {
@@ -597,7 +629,7 @@ class MaterialApp extends StatefulWidget {
   /// ```
   /// {@end-tool}
   /// {@macro flutter.widgets.widgetsApp.shortcuts.seeAlso}
-  final Map<LogicalKeySet, Intent>? shortcuts;
+  final Map<ShortcutActivator, Intent>? shortcuts;
 
   /// {@macro flutter.widgets.widgetsApp.actions}
   /// {@tool snippet}
@@ -655,15 +687,18 @@ class MaterialApp extends StatefulWidget {
   /// Turns on a [GridPaper] overlay that paints a baseline grid
   /// Material apps.
   ///
-  /// Only available in checked mode.
+  /// Only available in debug mode.
   ///
   /// See also:
   ///
   ///  * <https://material.io/design/layout/spacing-methods.html>
   final bool debugShowMaterialGrid;
 
+  /// {@macro flutter.widgets.widgetsApp.useInheritedMediaQuery}
+  final bool useInheritedMediaQuery;
+
   @override
-  _MaterialAppState createState() => _MaterialAppState();
+  State<MaterialApp> createState() => _MaterialAppState();
 
   /// The [HeroController] used for Material page transitions.
   ///
@@ -688,6 +723,18 @@ class MaterialApp extends StatefulWidget {
 /// When using the desktop platform, if the [Scrollable] widget scrolls in the
 /// [Axis.vertical], a [Scrollbar] is applied.
 ///
+/// If the scroll direction is [Axis.horizontal] scroll views are less
+/// discoverable, so consider adding a Scrollbar in these cases, either directly
+/// or through the [buildScrollbar] method.
+///
+/// [MaterialScrollBehavior.androidOverscrollIndicator] specifies the
+/// overscroll indicator that is used on [TargetPlatform.android]. When null,
+/// [ThemeData.androidOverscrollIndicator] is used. If also null, the default
+/// overscroll indicator is the [GlowingOverscrollIndicator]. These properties
+/// are deprecated. In order to use the [StretchingOverscrollIndicator], use
+/// the [ThemeData.useMaterial3] flag, or override
+/// [ScrollBehavior.buildOverscrollIndicator].
+///
 /// See also:
 ///
 ///  * [ScrollBehavior], the default scrolling behavior extended by this class.
@@ -695,7 +742,21 @@ class MaterialScrollBehavior extends ScrollBehavior {
   /// Creates a MaterialScrollBehavior that decorates [Scrollable]s with
   /// [GlowingOverscrollIndicator]s and [Scrollbar]s based on the current
   /// platform and provided [ScrollableDetails].
-  const MaterialScrollBehavior();
+  ///
+  /// [MaterialScrollBehavior.androidOverscrollIndicator] specifies the
+  /// overscroll indicator that is used on [TargetPlatform.android]. When null,
+  /// [ThemeData.androidOverscrollIndicator] is used. If also null, the default
+  /// overscroll indicator is the [GlowingOverscrollIndicator].
+  const MaterialScrollBehavior({
+    @Deprecated(
+      'Use ThemeData.useMaterial3 or override ScrollBehavior.buildOverscrollIndicator. '
+      'This feature was deprecated after v2.13.0-0.0.pre.'
+    )
+    AndroidOverscrollIndicator? androidOverscrollIndicator,
+  }) : _androidOverscrollIndicator = androidOverscrollIndicator,
+       super(androidOverscrollIndicator: androidOverscrollIndicator);
+
+  final AndroidOverscrollIndicator? _androidOverscrollIndicator;
 
   @override
   TargetPlatform getPlatform(BuildContext context) => Theme.of(context).platform;
@@ -713,8 +774,8 @@ class MaterialScrollBehavior extends ScrollBehavior {
           case TargetPlatform.macOS:
           case TargetPlatform.windows:
             return Scrollbar(
-              child: child,
               controller: details.controller,
+              child: child,
             );
           case TargetPlatform.android:
           case TargetPlatform.fuchsia:
@@ -728,6 +789,14 @@ class MaterialScrollBehavior extends ScrollBehavior {
   Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) {
     // When modifying this function, consider modifying the implementation in
     // the base class as well.
+    late final AndroidOverscrollIndicator indicator;
+    if (Theme.of(context).useMaterial3) {
+      indicator = AndroidOverscrollIndicator.stretch;
+    } else {
+      indicator = _androidOverscrollIndicator
+        ?? Theme.of(context).androidOverscrollIndicator
+        ?? androidOverscrollIndicator;
+    }
     switch (getPlatform(context)) {
       case TargetPlatform.iOS:
       case TargetPlatform.linux:
@@ -735,11 +804,21 @@ class MaterialScrollBehavior extends ScrollBehavior {
       case TargetPlatform.windows:
         return child;
       case TargetPlatform.android:
+        switch (indicator) {
+          case AndroidOverscrollIndicator.stretch:
+            return StretchingOverscrollIndicator(
+              axisDirection: details.direction,
+              child: child,
+            );
+          case AndroidOverscrollIndicator.glow:
+            continue glow;
+        }
+      glow:
       case TargetPlatform.fuchsia:
         return GlowingOverscrollIndicator(
-          child: child,
           axisDirection: details.direction,
           color: Theme.of(context).colorScheme.secondary,
+          child: child,
         );
     }
   }
@@ -761,18 +840,20 @@ class _MaterialAppState extends State<MaterialApp> {
   // of a particular LocalizationsDelegate.type is loaded so the
   // localizationsDelegate parameter can be used to override
   // _MaterialLocalizationsDelegate.
-  Iterable<LocalizationsDelegate<dynamic>> get _localizationsDelegates sync* {
-    if (widget.localizationsDelegates != null)
-      yield* widget.localizationsDelegates!;
-    yield DefaultMaterialLocalizations.delegate;
-    yield DefaultCupertinoLocalizations.delegate;
+  Iterable<LocalizationsDelegate<dynamic>> get _localizationsDelegates {
+    return <LocalizationsDelegate<dynamic>>[
+      if (widget.localizationsDelegates != null)
+        ...widget.localizationsDelegates!,
+      DefaultMaterialLocalizations.delegate,
+      DefaultCupertinoLocalizations.delegate,
+    ];
   }
 
   Widget _inspectorSelectButtonBuilder(BuildContext context, VoidCallback onPressed) {
     return FloatingActionButton(
-      child: const Icon(Icons.search),
       onPressed: onPressed,
       mini: true,
+      child: const Icon(Icons.search),
     );
   }
 
@@ -815,7 +896,7 @@ class _MaterialAppState extends State<MaterialApp> {
                 return widget.builder!(context, child);
               },
             )
-          : child!,
+          : child ?? const SizedBox.shrink(),
       ),
     );
   }
@@ -855,6 +936,7 @@ class _MaterialAppState extends State<MaterialApp> {
         shortcuts: widget.shortcuts,
         actions: widget.actions,
         restorationScopeId: widget.restorationScopeId,
+        useInheritedMediaQuery: widget.useInheritedMediaQuery,
       );
     }
 
@@ -890,19 +972,27 @@ class _MaterialAppState extends State<MaterialApp> {
       shortcuts: widget.shortcuts,
       actions: widget.actions,
       restorationScopeId: widget.restorationScopeId,
+      useInheritedMediaQuery: widget.useInheritedMediaQuery,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     Widget result = _buildWidgetApp(context);
-
+    result = Focus(
+      canRequestFocus: false,
+      onKey: (FocusNode node, RawKeyEvent event) {
+        if (event is! RawKeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape)
+          return KeyEventResult.ignored;
+        return Tooltip.dismissAllToolTips() ? KeyEventResult.handled : KeyEventResult.ignored;
+      },
+      child: result,
+    );
     assert(() {
       if (widget.debugShowMaterialGrid) {
         result = GridPaper(
           color: const Color(0xE0F9BBE0),
           interval: 8.0,
-          divisions: 2,
           subdivisions: 1,
           child: result,
         );

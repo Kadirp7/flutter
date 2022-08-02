@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 
-import 'package:vector_math/vector_math_64.dart' show Matrix4;
 import 'package:flutter/foundation.dart';
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 import 'arena.dart';
 import 'constants.dart';
@@ -136,8 +136,10 @@ typedef GestureTapCancelCallback = void Function();
 ///    any buttons.
 abstract class BaseTapGestureRecognizer extends PrimaryPointerGestureRecognizer {
   /// Creates a tap gesture recognizer.
-  BaseTapGestureRecognizer({ Object? debugOwner })
-    : super(deadline: kPressTimeout , debugOwner: debugOwner);
+  ///
+  /// {@macro flutter.gestures.GestureRecognizer.supportedDevices}
+  BaseTapGestureRecognizer({ Object? debugOwner, Set<PointerDeviceKind>? supportedDevices })
+    : super(deadline: kPressTimeout , debugOwner: debugOwner, supportedDevices: supportedDevices);
 
   bool _sentTapDown = false;
   bool _wonArenaForPrimaryPointer = false;
@@ -346,7 +348,10 @@ abstract class BaseTapGestureRecognizer extends PrimaryPointerGestureRecognizer 
 ///  * [MultiTapGestureRecognizer]
 class TapGestureRecognizer extends BaseTapGestureRecognizer {
   /// Creates a tap gesture recognizer.
-  TapGestureRecognizer({ Object? debugOwner }) : super(debugOwner: debugOwner);
+  ///
+  /// {@macro flutter.gestures.GestureRecognizer.supportedDevices}
+  TapGestureRecognizer({ Object? debugOwner, Set<PointerDeviceKind>? supportedDevices })
+    : super(debugOwner: debugOwner, supportedDevices: supportedDevices);
 
   /// A pointer has contacted the screen at a particular location with a primary
   /// button, which might be the start of a tap.
@@ -394,6 +399,7 @@ class TapGestureRecognizer extends BaseTapGestureRecognizer {
   /// See also:
   ///
   ///  * [kPrimaryButton], the button this callback responds to.
+  ///  * [onSecondaryTap], a similar callback but for a secondary button.
   ///  * [onTapUp], which has the same timing but with details.
   ///  * [GestureDetector.onTap], which exposes this callback.
   GestureTapCallback? onTap;

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/foundation.dart';
 
 typedef ElementRebuildCallback = void Function(StatefulElement element);
 
@@ -169,7 +170,7 @@ void main() {
             ],
           );
         },
-      )
+      ),
     );
     // Result will be written during first build and need to clear it to remove
     // noise.
@@ -216,7 +217,7 @@ void main() {
             ],
           );
         },
-      )
+      ),
     );
     expect(rebuiltKeyOfSecondChildBeforeLayout, key2);
     expect(rebuiltKeyOfFirstChildAfterLayout, key2);
@@ -265,7 +266,7 @@ void main() {
             ],
           );
         },
-      )
+      ),
     );
     // Result will be written during first build and need to clear it to remove
     // noise.
@@ -319,7 +320,7 @@ void main() {
             ],
           );
         },
-      )
+      ),
     );
     expect(rebuiltKeyOfSecondChildBeforeLayout, key2);
     expect(rebuiltKeyOfSecondChildAfterLayout, key3);
@@ -363,7 +364,7 @@ void main() {
             ],
           );
         },
-      )
+      ),
     );
     // Result will be written during first build and need to clear it to remove
     // noise.
@@ -411,7 +412,7 @@ void main() {
             ],
           );
         },
-      )
+      ),
     );
     expect(rebuiltKeyOfSecondChildBeforeLayout, key1);
     expect(rebuiltKeyOfThirdChildAfterLayout, key1);
@@ -441,7 +442,7 @@ void main() {
         'The key [GlobalKey#00000 problematic] was used by multiple widgets. The parents of those widgets were:\n'
         '- Container-[<1>]\n'
         '- Container-[<2>]\n'
-        'A GlobalKey can only be specified on one widget at a time in the widget tree.'
+        'A GlobalKey can only be specified on one widget at a time in the widget tree.',
       ),
     );
   });
@@ -459,7 +460,7 @@ void main() {
           key: const ValueKey<int>(2),
         ),
         Container(
-          key: key
+          key: key,
         ),
       ],
     ));
@@ -487,7 +488,7 @@ void main() {
         'The key [GlobalKey#00000 problematic] was used by multiple widgets. The parents of those widgets were:\n'
         '- Container-[<1>]\n'
         '- Container-[<2>]\n'
-        'A GlobalKey can only be specified on one widget at a time in the widget tree.'
+        'A GlobalKey can only be specified on one widget at a time in the widget tree.',
       ),
     );
   });
@@ -512,11 +513,9 @@ void main() {
     expect(
       exception.toString(),
       equalsIgnoringHashCodes(
-        'Multiple widgets used the same GlobalKey.\n'
-        'The key [GlobalKey#00000 problematic] was used by 2 widgets:\n'
-        '  SizedBox-[GlobalKey#00000 problematic]\n'
-        '  Placeholder-[GlobalKey#00000 problematic]\n'
-        'A GlobalKey can only be specified on one widget at a time in the widget tree.'
+        'Duplicate keys found.\n'
+        'If multiple keyed nodes exist as children of another node, they must have unique keys.\n'
+        'Stack(alignment: AlignmentDirectional.topStart, textDirection: ltr, fit: loose) has multiple children with key [GlobalKey#00000 problematic].'
       ),
     );
   });
@@ -541,11 +540,9 @@ void main() {
     expect(
       exception.toString(),
       equalsIgnoringHashCodes(
-        'Multiple widgets used the same GlobalKey.\n'
-        'The key [GlobalKey#00000 problematic] was used by 2 widgets:\n'
-        '  Container-[GlobalKey#00000 problematic]\n'
-        '  Placeholder-[GlobalKey#00000 problematic]\n'
-        'A GlobalKey can only be specified on one widget at a time in the widget tree.'
+        'Duplicate keys found.\n'
+        'If multiple keyed nodes exist as children of another node, they must have unique keys.\n'
+        'Stack(alignment: AlignmentDirectional.topStart, textDirection: ltr, fit: loose) has multiple children with key [GlobalKey#00000 problematic].'
       ),
     );
   });
@@ -721,7 +718,7 @@ void main() {
       equalsIgnoringHashCodes(
         'Duplicate keys found.\n'
         'If multiple keyed nodes exist as children of another node, they must have unique keys.\n'
-        'Stack(alignment: AlignmentDirectional.topStart, textDirection: ltr, fit: loose) has multiple children with key [GlobalKey#00000 problematic].'
+        'Stack(alignment: AlignmentDirectional.topStart, textDirection: ltr, fit: loose) has multiple children with key [GlobalKey#00000 problematic].',
       ),
     );
   });
@@ -736,8 +733,8 @@ void main() {
         Container(key: key1),
         Container(key: key2),
         Container(key: key3),
-      ]),
-    );
+      ],
+    ));
     await tester.pumpWidget(Stack(
       textDirection: TextDirection.ltr,
       children: <Widget>[
@@ -892,7 +889,7 @@ void main() {
         'removed due to GlobalKey reparenting is:\n'
         '- Stack(alignment: AlignmentDirectional.topStart, textDirection: ltr, fit: loose, '
         'renderObject: RenderStack#00000)\n'
-        'A GlobalKey can only be specified on one widget at a time in the widget tree.'
+        'A GlobalKey can only be specified on one widget at a time in the widget tree.',
       ),
     );
   });
@@ -920,7 +917,7 @@ void main() {
         'The key [GlobalKey#95367 problematic] was used by 2 widgets:\n'
         '  SizedBox-[GlobalKey#00000 problematic]\n'
         '  Container-[GlobalKey#00000 problematic]\n'
-        'A GlobalKey can only be specified on one widget at a time in the widget tree.'
+        'A GlobalKey can only be specified on one widget at a time in the widget tree.',
       ),
     );
   });
@@ -959,7 +956,7 @@ void main() {
             ],
           );
         },
-      )
+      ),
     );
     // Result will be written during first build and need to clear it to remove
     // noise.
@@ -1006,7 +1003,7 @@ void main() {
             ],
           );
         },
-      )
+      ),
     );
     expect(rebuiltKeyOfSecondChildBeforeLayout, key2);
     expect(rebuiltKeyOfFirstChildAfterLayout, key2);
@@ -1021,7 +1018,7 @@ void main() {
         'parents of those widgets were:\n'
         '- _Stateful(state: _StatefulState#00000)\n'
         '- _Stateful(state: _StatefulState#00000)\n'
-        'A GlobalKey can only be specified on one widget at a time in the widget tree.'
+        'A GlobalKey can only be specified on one widget at a time in the widget tree.',
       ),
     );
   });
@@ -1088,7 +1085,7 @@ void main() {
     expect(tabController.index, 0);
 
     // switch tabs 0 -> 1
-    setState((){
+    setState(() {
       tabController.index = 1;
     });
 
@@ -1097,7 +1094,7 @@ void main() {
     expect(tabController.index, 1);
 
     // rebuild TabBarView that only have the 1st page with GlobalKey 'key1'
-    setState((){
+    setState(() {
       tabBarViewCnt = 1;
       tabController = TabController(length: tabBarViewCnt, vsync: const TestVSync());
     });
@@ -1192,7 +1189,7 @@ void main() {
         'are not a subtype of `RenderObjectWidget`.\n'
         'The following element does not have an associated render object:\n'
         '  _EmptyWidget\n'
-        'debugCreator: _EmptyWidget ← Column ← [root]'
+        'debugCreator: _EmptyWidget ← Column ← [root]',
       ),
     );
   });
@@ -1225,7 +1222,7 @@ void main() {
         'are not a subtype of `RenderObjectWidget`.\n'
         'The following element does not have an associated render object:\n'
         '  _EmptyWidget\n'
-        'debugCreator: _EmptyWidget ← Column ← [root]'
+        'debugCreator: _EmptyWidget ← Column ← [root]',
       ),
     );
   });
@@ -1277,7 +1274,8 @@ void main() {
     late FlutterError error;
     try {
       tester.binding.buildOwner!.scheduleBuildFor(
-        DirtyElementWithCustomBuildOwner(tester.binding.buildOwner!, Container()));
+        DirtyElementWithCustomBuildOwner(tester.binding.buildOwner!, Container()),
+      );
     } on FlutterError catch (e) {
       error = e;
     } finally {
@@ -1361,7 +1359,7 @@ void main() {
       },
       build: (bool value) {
         isBuildDecorated = value;
-      }
+      },
     );
 
     await tester.pumpWidget(Inherited(0, child: child));
@@ -1526,6 +1524,7 @@ void main() {
     await tester.pumpWidget(Container());
     final dynamic exception = tester.takeException();
     expect(
+      // ignore: avoid_dynamic_calls
       exception.message,
       equalsIgnoringHashCodes(
         'Tried to build dirty widget in the wrong build scope.\n'
@@ -1539,17 +1538,17 @@ void main() {
         '  [root]\n'
         'The offending element (which does not appear to be a descendant of the root of '
         'the build scope) was:\n'
-        '  _StatefulLeaf-[GlobalKey#00000]'
-      )
+        '  _StatefulLeaf-[GlobalKey#00000]',
+      ),
     );
   });
 
   testWidgets('Can create BuildOwner that does not interfere with pointer router or raw key event handler', (WidgetTester tester) async {
-    final int pointerRouterCount = GestureBinding.instance!.pointerRouter.debugGlobalRouteCount;
+    final int pointerRouterCount = GestureBinding.instance.pointerRouter.debugGlobalRouteCount;
     final RawKeyEventHandler? rawKeyEventHandler = RawKeyboard.instance.keyEventHandler;
     expect(rawKeyEventHandler, isNotNull);
     BuildOwner(focusManager: FocusManager());
-    expect(GestureBinding.instance!.pointerRouter.debugGlobalRouteCount, pointerRouterCount);
+    expect(GestureBinding.instance.pointerRouter.debugGlobalRouteCount, pointerRouterCount);
     expect(RawKeyboard.instance.keyEventHandler, same(rawKeyEventHandler));
   });
 
@@ -1571,6 +1570,129 @@ void main() {
     expect(tester.binding.buildOwner!.globalKeyCount, initialCount + 2);
     await tester.pumpWidget(Container());
     expect(tester.binding.buildOwner!.globalKeyCount, initialCount + 0);
+  });
+
+  testWidgets('Widget and State properties are nulled out when unmounted', (WidgetTester tester) async {
+    await tester.pumpWidget(const _StatefulLeaf());
+    final StatefulElement element = tester.element<StatefulElement>(find.byType(_StatefulLeaf));
+    expect(element.state, isA<State<_StatefulLeaf>>());
+    expect(element.widget, isA<_StatefulLeaf>());
+    // Replace the widget tree to unmount the element.
+    await tester.pumpWidget(Container());
+    // Accessing state/widget now throws a CastError because they have been
+    // nulled out to reduce severity of memory leaks when an Element (e.g. in
+    // the form of a BuildContext) is retained past its useful life. See also
+    // https://github.com/flutter/flutter/issues/79605 for examples why this may
+    // occur.
+    expect(() => element.state, throwsA(isA<TypeError>()));
+    expect(() => element.widget, throwsA(isA<TypeError>()));
+  });
+
+  testWidgets('LayerLink can be swapped between parent and child container layers', (WidgetTester tester) async {
+    // Regression test for https://github.com/flutter/flutter/issues/96959.
+    final LayerLink link = LayerLink();
+    await tester.pumpWidget(_TestLeaderLayerWidget(
+        link: link,
+        child: const _TestLeaderLayerWidget(
+          child: Placeholder(),
+        )
+    ));
+    expect(tester.takeException(), isNull);
+
+    // Swaps the layer link.
+    await tester.pumpWidget(_TestLeaderLayerWidget(
+        child: _TestLeaderLayerWidget(
+          link: link,
+          child: const Placeholder(),
+        ),
+    ));
+    expect(tester.takeException(), isNull);
+
+  });
+
+  testWidgets('Deactivate and activate are called correctly', (WidgetTester tester) async {
+    final List<String> states = <String>[];
+    Widget build([Key? key]) {
+      return StatefulWidgetSpy(
+        key: key,
+        onInitState: (BuildContext context) { states.add('initState'); },
+        onDidUpdateWidget: (BuildContext context) { states.add('didUpdateWidget'); },
+        onDeactivate: (BuildContext context) { states.add('deactivate'); },
+        onActivate: (BuildContext context) { states.add('activate'); },
+        onBuild: (BuildContext context) { states.add('build'); },
+        onDispose: (BuildContext context) { states.add('dispose'); },
+      );
+    }
+    Future<void> pumpWidget(Widget widget) {
+      states.clear();
+      return tester.pumpWidget(widget);
+    }
+
+    await pumpWidget(build());
+    expect(states, <String>['initState', 'build']);
+    await pumpWidget(Container(child: build()));
+    expect(states, <String>['deactivate', 'initState', 'build', 'dispose']);
+    await pumpWidget(Container());
+    expect(states, <String>['deactivate', 'dispose']);
+
+    final GlobalKey key = GlobalKey();
+    await pumpWidget(build(key));
+    expect(states, <String>['initState', 'build']);
+    await pumpWidget(Container(child: build(key)));
+    expect(states, <String>['deactivate', 'activate', 'didUpdateWidget', 'build']);
+    await pumpWidget(Container());
+    expect(states, <String>['deactivate', 'dispose']);
+  });
+
+  testWidgets('RenderObjectElement.unmount disposes of its renderObject', (WidgetTester tester) async {
+    await tester.pumpWidget(const Placeholder());
+    final RenderObjectElement element = tester.allElements.whereType<RenderObjectElement>().first;
+    final RenderObject renderObject = element.renderObject;
+    expect(renderObject.debugDisposed, false);
+
+    await tester.pumpWidget(Container());
+
+    expect(() => element.renderObject, throwsAssertionError);
+    expect(renderObject.debugDisposed, true);
+  });
+
+  testWidgets('Getting the render object of an unmounted element throws', (WidgetTester tester) async {
+    await tester.pumpWidget(const _StatefulLeaf());
+    final StatefulElement element = tester.element<StatefulElement>(find.byType(_StatefulLeaf));
+    expect(element.state, isA<State<_StatefulLeaf>>());
+    expect(element.widget, isA<_StatefulLeaf>());
+    // Replace the widget tree to unmount the element.
+    await tester.pumpWidget(Container());
+
+  expect(
+    () => element.findRenderObject(),
+    throwsA(isA<FlutterError>().having(
+      (FlutterError error) => error.message,
+      'message',
+      equalsIgnoringHashCodes('''
+Cannot get renderObject of inactive element.
+In order for an element to have a valid renderObject, it must be active, which means it is part of the tree.
+Instead, this element is in the _ElementLifecycle.defunct state.
+If you called this method from a State object, consider guarding it with State.mounted.
+The findRenderObject() method was called for the following element:
+  StatefulElement#00000(DEFUNCT)'''),
+      )),
+    );
+  });
+
+  testWidgets('Elements use the identity hashCode', (WidgetTester tester) async {
+    final StatefulElement statefulElement = StatefulElement(const _StatefulLeaf());
+    expect(statefulElement.hashCode, identityHashCode(statefulElement));
+
+    final StatelessElement statelessElement = StatelessElement(const Placeholder());
+
+    expect(statelessElement.hashCode, identityHashCode(statelessElement));
+
+    final InheritedElement inheritedElement = InheritedElement(
+      const Directionality(textDirection: TextDirection.ltr, child: Placeholder()),
+    );
+
+    expect(inheritedElement.hashCode, identityHashCode(inheritedElement));
   });
 }
 
@@ -1621,7 +1743,7 @@ class Decorate extends StatefulWidget {
   const Decorate({
     Key? key,
     required this.didChangeDependencies,
-    required this.build
+    required this.build,
   }) :
     assert(didChangeDependencies != null),
     assert(build != null),
@@ -1631,7 +1753,7 @@ class Decorate extends StatefulWidget {
   final void Function(bool isInBuild) build;
 
   @override
-  _DecorateState createState() => _DecorateState();
+  State<Decorate> createState() => _DecorateState();
 
   @override
   DecorateElement createElement() => DecorateElement(this);
@@ -1810,6 +1932,7 @@ class StatefulWidgetSpy extends StatefulWidget {
     this.onDidChangeDependencies,
     this.onDispose,
     this.onDeactivate,
+    this.onActivate,
     this.onDidUpdateWidget,
   })  : super(key: key);
 
@@ -1818,10 +1941,11 @@ class StatefulWidgetSpy extends StatefulWidget {
   final void Function(BuildContext)? onDidChangeDependencies;
   final void Function(BuildContext)? onDispose;
   final void Function(BuildContext)? onDeactivate;
+  final void Function(BuildContext)? onActivate;
   final void Function(BuildContext)? onDidUpdateWidget;
 
   @override
-  _StatefulWidgetSpyState createState() => _StatefulWidgetSpyState();
+  State<StatefulWidgetSpy> createState() => _StatefulWidgetSpyState();
 }
 
 class _StatefulWidgetSpyState extends State<StatefulWidgetSpy> {
@@ -1835,6 +1959,12 @@ class _StatefulWidgetSpyState extends State<StatefulWidgetSpy> {
   void deactivate() {
     super.deactivate();
     widget.onDeactivate?.call(context);
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    widget.onActivate?.call(context);
   }
 
   @override
@@ -1923,4 +2053,54 @@ class _EmptyElement extends Element {
 
   @override
   void performRebuild() {}
+}
+
+class _TestLeaderLayerWidget extends SingleChildRenderObjectWidget {
+  const _TestLeaderLayerWidget({
+    Key? key,
+    this.link,
+    Widget? child,
+  }) : super(key: key, child: child);
+  final LayerLink? link;
+
+  @override
+  _RenderTestLeaderLayerWidget createRenderObject(BuildContext context) {
+    return _RenderTestLeaderLayerWidget(
+      link: link,
+    );
+  }
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderTestLeaderLayerWidget renderObject) {
+    renderObject.link = link;
+  }
+}
+
+class _RenderTestLeaderLayerWidget extends RenderProxyBox {
+  _RenderTestLeaderLayerWidget({
+    LayerLink? link,
+    RenderBox? child,
+  }) : _link = link,
+        super(child);
+
+  LayerLink? get link => _link;
+  LayerLink? _link;
+  set link(LayerLink? value) {
+    if (_link == value) {
+      return;
+    }
+    _link = value;
+    markNeedsPaint();
+  }
+
+  @override
+  bool get isRepaintBoundary => true;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    super.paint(context, offset);
+    if (_link != null) {
+      context.pushLayer(LeaderLayer(link: _link!, offset: offset),(_, __){}, Offset.zero);
+    }
+  }
 }

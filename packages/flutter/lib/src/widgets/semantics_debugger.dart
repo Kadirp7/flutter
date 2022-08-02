@@ -6,8 +6,8 @@ import 'dart:math' as math;
 import 'dart:ui' show SemanticsFlag;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 
 import 'basic.dart';
 import 'binding.dart';
@@ -45,7 +45,7 @@ class SemanticsDebugger extends StatefulWidget {
   final TextStyle labelStyle;
 
   @override
-  _SemanticsDebuggerState createState() => _SemanticsDebuggerState();
+  State<SemanticsDebugger> createState() => _SemanticsDebuggerState();
 }
 
 class _SemanticsDebuggerState extends State<SemanticsDebugger> with WidgetsBindingObserver {
@@ -58,9 +58,9 @@ class _SemanticsDebuggerState extends State<SemanticsDebugger> with WidgetsBindi
     // static here because we might not be in a tree that's attached to that
     // binding. Instead, we should find a way to get to the PipelineOwner from
     // the BuildContext.
-    _client = _SemanticsClient(WidgetsBinding.instance!.pipelineOwner)
+    _client = _SemanticsClient(WidgetsBinding.instance.pipelineOwner)
       ..addListener(_update);
-    WidgetsBinding.instance!.addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
@@ -68,7 +68,7 @@ class _SemanticsDebuggerState extends State<SemanticsDebugger> with WidgetsBindi
     _client
       ..removeListener(_update)
       ..dispose();
-    WidgetsBinding.instance!.removeObserver(this);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -80,7 +80,7 @@ class _SemanticsDebuggerState extends State<SemanticsDebugger> with WidgetsBindi
   }
 
   void _update() {
-    SchedulerBinding.instance!.addPostFrameCallback((Duration timeStamp) {
+    SchedulerBinding.instance.addPostFrameCallback((Duration timeStamp) {
       // Semantic information are only available at the end of a frame and our
       // only chance to paint them on the screen is the next frame. To achieve
       // this, we call setState() in a post-frame callback.
@@ -98,7 +98,7 @@ class _SemanticsDebuggerState extends State<SemanticsDebugger> with WidgetsBindi
   Offset? _lastPointerDownLocation;
   void _handlePointerDown(PointerDownEvent event) {
     setState(() {
-      _lastPointerDownLocation = event.position * WidgetsBinding.instance!.window.devicePixelRatio;
+      _lastPointerDownLocation = event.position * WidgetsBinding.instance.window.devicePixelRatio;
     });
     // TODO(ianh): Use a gesture recognizer so that we can reset the
     // _lastPointerDownLocation when none of the other gesture recognizers win.
@@ -150,7 +150,7 @@ class _SemanticsDebuggerState extends State<SemanticsDebugger> with WidgetsBindi
 
   // TODO(abarth): This shouldn't be a static. We should get the pipeline owner
   // from [context] somehow.
-  PipelineOwner get _pipelineOwner => WidgetsBinding.instance!.pipelineOwner;
+  PipelineOwner get _pipelineOwner => WidgetsBinding.instance.pipelineOwner;
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +159,7 @@ class _SemanticsDebuggerState extends State<SemanticsDebugger> with WidgetsBindi
         _pipelineOwner,
         _client.generation,
         _lastPointerDownLocation, // in physical pixels
-        WidgetsBinding.instance!.window.devicePixelRatio,
+        WidgetsBinding.instance.window.devicePixelRatio,
         widget.labelStyle,
       ),
       child: GestureDetector(
@@ -280,22 +280,22 @@ class _SemanticsDebuggerPainter extends CustomPainter {
     if (isAdjustable)
       annotations.add('adjustable');
 
-    assert(data.label != null);
+    assert(data.attributedLabel != null);
     final String message;
-    if (data.label.isEmpty) {
+    if (data.attributedLabel.string.isEmpty) {
       message = annotations.join('; ');
     } else {
       final String label;
       if (data.textDirection == null) {
-        label = '${Unicode.FSI}${data.label}${Unicode.PDI}';
+        label = '${Unicode.FSI}${data.attributedLabel.string}${Unicode.PDI}';
         annotations.insert(0, 'MISSING TEXT DIRECTION');
       } else {
         switch (data.textDirection!) {
           case TextDirection.rtl:
-            label = '${Unicode.RLI}${data.label}${Unicode.PDF}';
+            label = '${Unicode.RLI}${data.attributedLabel.string}${Unicode.PDF}';
             break;
           case TextDirection.ltr:
-            label = data.label;
+            label = data.attributedLabel.string;
             break;
         }
       }

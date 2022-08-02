@@ -186,8 +186,8 @@ class BorderSide {
     }
   }
 
-  /// Whether the two given [BorderSide]s can be merged using [new
-  /// BorderSide.merge].
+  /// Whether the two given [BorderSide]s can be merged using
+  /// [BorderSide.merge].
   ///
   /// Two sides can be merged if one or both are zero-width with
   /// [BorderStyle.none], or if they both have the same color and style.
@@ -246,7 +246,6 @@ class BorderSide {
     return BorderSide(
       color: Color.lerp(colorA, colorB, t)!,
       width: width,
-      style: BorderStyle.solid,
     );
   }
 
@@ -263,7 +262,7 @@ class BorderSide {
   }
 
   @override
-  int get hashCode => hashValues(color, width, style);
+  int get hashCode => Object.hash(color, width, style);
 
   @override
   String toString() => '${objectRuntimeType(this, 'BorderSide')}($color, ${width.toStringAsFixed(1)}, $style)';
@@ -640,7 +639,7 @@ class _CompoundBorder extends ShapeBorder {
   }
 
   @override
-  int get hashCode => hashList(borders);
+  int get hashCode => Object.hashAll(borders);
 
   @override
   String toString() {

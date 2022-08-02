@@ -175,6 +175,22 @@ class RenderAnimatedSize extends RenderAligningShiftedBox {
   }
 
   @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    switch (state) {
+      case RenderAnimatedSizeState.start:
+      case RenderAnimatedSizeState.stable:
+        break;
+      case RenderAnimatedSizeState.changed:
+      case RenderAnimatedSizeState.unstable:
+        // Call markNeedsLayout in case the RenderObject isn't marked dirty
+        // already, to resume interrupted resizing animation.
+        markNeedsLayout();
+        break;
+    }
+  }
+
+  @override
   void detach() {
     _controller.stop();
     super.detach();
@@ -327,19 +343,25 @@ class RenderAnimatedSize extends RenderAligningShiftedBox {
   void paint(PaintingContext context, Offset offset) {
     if (child != null && _hasVisualOverflow && clipBehavior != Clip.none) {
       final Rect rect = Offset.zero & size;
-      _clipRectLayer = context.pushClipRect(
+      _clipRectLayer.layer = context.pushClipRect(
         needsCompositing,
         offset,
         rect,
         super.paint,
         clipBehavior: clipBehavior,
-        oldLayer: _clipRectLayer,
+        oldLayer: _clipRectLayer.layer,
       );
     } else {
-      _clipRectLayer = null;
+      _clipRectLayer.layer = null;
       super.paint(context, offset);
     }
   }
 
-  ClipRectLayer? _clipRectLayer;
+  final LayerHandle<ClipRectLayer> _clipRectLayer = LayerHandle<ClipRectLayer>();
+
+  @override
+  void dispose() {
+    _clipRectLayer.layer = null;
+    super.dispose();
+  }
 }

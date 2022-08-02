@@ -15,7 +15,7 @@ import 'framework.dart';
 
 /// Embeds an Android view in the Widget hierarchy.
 ///
-/// Requires Android API level 20 or greater.
+/// Requires Android API level 23 or greater.
 ///
 /// Embedding Android views is an expensive operation and should be avoided when a Flutter
 /// equivalent is possible.
@@ -345,6 +345,7 @@ class HtmlElementView extends StatelessWidget {
   const HtmlElementView({
     Key? key,
     required this.viewType,
+    this.onPlatformViewCreated,
   }) : assert(viewType != null),
        assert(kIsWeb, 'HtmlElementView is only available on Flutter Web.'),
        super(key: key);
@@ -353,6 +354,11 @@ class HtmlElementView extends StatelessWidget {
   ///
   /// A PlatformViewFactory for this type must have been registered.
   final String viewType;
+
+  /// Callback to invoke after the platform view has been created.
+  ///
+  /// May be null.
+  final PlatformViewCreatedCallback? onPlatformViewCreated;
 
   @override
   Widget build(BuildContext context) {
@@ -372,7 +378,10 @@ class HtmlElementView extends StatelessWidget {
   /// Creates the controller and kicks off its initialization.
   _HtmlElementViewController _createHtmlElementView(PlatformViewCreationParams params) {
     final _HtmlElementViewController controller = _HtmlElementViewController(params.id, viewType);
-    controller._initialize().then((_) { params.onPlatformViewCreated(params.id); });
+    controller._initialize().then((_) {
+      params.onPlatformViewCreated(params.id);
+      onPlatformViewCreated?.call(params.id);
+    });
     return controller;
   }
 }
@@ -537,7 +546,7 @@ class _AndroidViewState extends State<AndroidView> {
     }
     SystemChannels.textInput.invokeMethod<void>(
       'TextInput.setPlatformViewClient',
-      _id,
+      <String, dynamic>{'platformViewId': _id},
     ).catchError((dynamic e) {
       if (e is MissingPluginException) {
         // We land the framework part of Android platform views keyboard
@@ -672,7 +681,7 @@ class _AndroidPlatformView extends LeafRenderObjectWidget {
 
   @override
   void updateRenderObject(BuildContext context, RenderAndroidView renderObject) {
-    renderObject.viewController = controller;
+    renderObject.controller = controller;
     renderObject.hitTestBehavior = hitTestBehavior;
     renderObject.updateGestureRecognizers(gestureRecognizers);
     renderObject.clipBehavior = clipBehavior;
@@ -833,15 +842,11 @@ class PlatformViewLink extends StatefulWidget {
 class _PlatformViewLinkState extends State<PlatformViewLink> {
   int? _id;
   PlatformViewController? _controller;
-  bool _platformViewCreated = false;
   Widget? _surface;
   FocusNode? _focusNode;
 
   @override
   Widget build(BuildContext context) {
-    if (!_platformViewCreated) {
-      return const SizedBox.expand();
-    }
     _surface ??= widget._surfaceFactory(context, _controller!);
     return Focus(
       focusNode: _focusNode,
@@ -866,9 +871,6 @@ class _PlatformViewLinkState extends State<PlatformViewLink> {
       // The _surface has to be recreated as its controller is disposed.
       // Setting _surface to null will trigger its creation in build().
       _surface = null;
-
-      // We are about to create a new platform view.
-      _platformViewCreated = false;
       _initialize();
     }
   }
@@ -879,23 +881,23 @@ class _PlatformViewLinkState extends State<PlatformViewLink> {
       PlatformViewCreationParams._(
         id: _id!,
         viewType: widget.viewType,
-        onPlatformViewCreated: _onPlatformViewCreated,
+        onPlatformViewCreated: (_) {},
         onFocusChanged: _handlePlatformFocusChanged,
       ),
     );
-  }
-
-  void _onPlatformViewCreated(int id) {
-    setState(() { _platformViewCreated = true; });
   }
 
   void _handleFrameworkFocusChanged(bool isFocused) {
     if (!isFocused) {
       _controller?.clearFocus();
     }
+    SystemChannels.textInput.invokeMethod<void>(
+      'TextInput.setPlatformViewClient',
+      <String, dynamic>{'platformViewId': _id},
+    );
   }
 
-  void _handlePlatformFocusChanged(bool isFocused){
+  void _handlePlatformFocusChanged(bool isFocused) {
     if (isFocused) {
       _focusNode!.requestFocus();
     }
@@ -1007,18 +1009,18 @@ class PlatformViewSurface extends LeafRenderObjectWidget {
 
 /// Integrates an Android view with Flutter's compositor, touch, and semantics subsystems.
 ///
-/// The compositor integration is done by adding a [PlatformViewLayer] to the layer tree. [PlatformViewLayer]
-/// isn't supported on all platforms. Custom Flutter embedders can support
-/// [PlatformViewLayer]s by implementing a SystemCompositor.
+/// The compositor integration is done by adding a [TextureLayer] to the layer tree.
 ///
-/// The widget fills all available space, the parent of this object must provide bounded layout
-/// constraints.
+/// The parent of this object must provide bounded layout constraints.
 ///
 /// If the associated platform view is not created, the [AndroidViewSurface] does not paint any contents.
 ///
+/// When possible, you may want to use [AndroidView] directly, since it requires less boilerplate code
+/// than [AndroidViewSurface], and there's no difference in performance, or other trade-off(s).
+///
 /// See also:
 ///
-///  * [AndroidView] which embeds an Android platform view in the widget hierarchy using a [TextureLayer].
+///  * [AndroidView] which embeds an Android platform view in the widget hierarchy.
 ///  * [UiKitView] which embeds an iOS platform view in the widget hierarchy.
 class AndroidViewSurface extends PlatformViewSurface {
   /// Construct an `AndroidPlatformViewSurface`.
@@ -1039,12 +1041,26 @@ class AndroidViewSurface extends PlatformViewSurface {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    final PlatformViewRenderBox renderBox =
-        super.createRenderObject(context) as PlatformViewRenderBox;
-
-    (controller as AndroidViewController).pointTransformer =
+    final AndroidViewController viewController = controller as AndroidViewController;
+    // Compose using the Android view hierarchy.
+    // This is useful when embedding a SurfaceView into a Flutter app.
+    // SurfaceViews cannot be composed using GL textures.
+    if (viewController is ExpensiveAndroidViewController) {
+      final PlatformViewRenderBox renderBox =
+          super.createRenderObject(context) as PlatformViewRenderBox;
+      viewController.pointTransformer =
+          (Offset position) => renderBox.globalToLocal(position);
+      return renderBox;
+    }
+    // Use GL texture based composition.
+    // App should use GL texture unless they require to embed a SurfaceView.
+    final RenderAndroidView renderBox = RenderAndroidView(
+      viewController: viewController,
+      gestureRecognizers: gestureRecognizers,
+      hitTestBehavior: hitTestBehavior,
+    );
+    viewController.pointTransformer =
         (Offset position) => renderBox.globalToLocal(position);
-
     return renderBox;
   }
 }

@@ -11,10 +11,8 @@ import 'package:flutter_tools/src/commands/create.dart';
 import 'package:flutter_tools/src/convert.dart';
 import 'package:flutter_tools/src/doctor.dart';
 import 'package:flutter_tools/src/doctor_validator.dart';
-import 'package:flutter_tools/src/reporting/reporting.dart';
-import 'package:flutter_tools/src/globals_null_migrated.dart' as globals;
+import 'package:flutter_tools/src/globals.dart' as globals;
 
-import '../../src/common.dart';
 import '../../src/context.dart';
 import '../../src/test_flutter_command_runner.dart';
 import '../../src/testbed.dart';
@@ -31,7 +29,7 @@ void main() {
     setUp(() {
       testbed = Testbed(setup: () {
         Cache.flutterRoot = 'flutter';
-        final List<String> paths = <String>[
+        final List<String> filePaths = <String>[
           globals.fs.path.join('flutter', 'packages', 'flutter', 'pubspec.yaml'),
           globals.fs.path.join('flutter', 'packages', 'flutter_driver', 'pubspec.yaml'),
           globals.fs.path.join('flutter', 'packages', 'flutter_test', 'pubspec.yaml'),
@@ -39,8 +37,23 @@ void main() {
           globals.fs.path.join('usr', 'local', 'bin', 'adb'),
           globals.fs.path.join('Android', 'platform-tools', 'adb.exe'),
         ];
-        for (final String path in paths) {
-          globals.fs.file(path).createSync(recursive: true);
+        for (final String filePath in filePaths) {
+          globals.fs.file(filePath).createSync(recursive: true);
+        }
+        final List<String> templatePaths = <String>[
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'app'),
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'app_shared'),
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'app_test_widget'),
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'cocoapods'),
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'skeleton'),
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'module', 'common'),
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'package'),
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'plugin'),
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'plugin_ffi'),
+          globals.fs.path.join('flutter', 'packages', 'flutter_tools', 'templates', 'plugin_shared'),
+        ];
+        for (final String templatePath in templatePaths) {
+          globals.fs.directory(templatePath).createSync(recursive: true);
         }
         // Set up enough of the packages to satisfy the templating code.
         final File packagesFile = globals.fs.file(
@@ -73,16 +86,22 @@ void main() {
       final CommandRunner<void> runner = createTestCommandRunner(command);
 
       await runner.run(<String>['create', '--no-pub', '--template=module', 'testy']);
-      expect(await command.usageValues, containsPair(CustomDimensions.commandCreateProjectType, 'module'));
+      expect((await command.usageValues).commandCreateProjectType, 'module');
 
-      await runner.run(<String>['create', '--no-pub', '--template=app', 'testy']);
-      expect(await command.usageValues, containsPair(CustomDimensions.commandCreateProjectType, 'app'));
+      await runner.run(<String>['create', '--no-pub', '--template=app', 'testy1']);
+      expect((await command.usageValues).commandCreateProjectType, 'app');
 
-      await runner.run(<String>['create', '--no-pub', '--template=package', 'testy']);
-      expect(await command.usageValues, containsPair(CustomDimensions.commandCreateProjectType, 'package'));
+      await runner.run(<String>['create', '--no-pub', '--template=skeleton', 'testy2']);
+      expect((await command.usageValues).commandCreateProjectType, 'skeleton');
 
-      await runner.run(<String>['create', '--no-pub', '--template=plugin', 'testy']);
-      expect(await command.usageValues, containsPair(CustomDimensions.commandCreateProjectType, 'plugin'));
+      await runner.run(<String>['create', '--no-pub', '--template=package', 'testy3']);
+      expect((await command.usageValues).commandCreateProjectType, 'package');
+
+      await runner.run(<String>['create', '--no-pub', '--template=plugin', 'testy4']);
+      expect((await command.usageValues).commandCreateProjectType, 'plugin');
+
+      await runner.run(<String>['create', '--no-pub', '--template=plugin_ffi', 'testy5']);
+      expect((await command.usageValues).commandCreateProjectType, 'plugin_ffi');
     }));
 
     testUsingContext('set iOS host language type as usage value', () => testbed.run(() async {
@@ -91,8 +110,7 @@ void main() {
 
       await runner.run(<String>[
         'create', '--no-pub', '--template=app', 'testy']);
-      expect(await command.usageValues,
-             containsPair(CustomDimensions.commandCreateIosLanguage, 'swift'));
+      expect((await command.usageValues).commandCreateIosLanguage, 'swift');
 
       await runner.run(<String>[
         'create',
@@ -101,8 +119,7 @@ void main() {
         '--ios-language=objc',
         'testy',
       ]);
-      expect(await command.usageValues,
-             containsPair(CustomDimensions.commandCreateIosLanguage, 'objc'));
+      expect((await command.usageValues).commandCreateIosLanguage, 'objc');
 
     }));
 
@@ -111,8 +128,7 @@ void main() {
       final CommandRunner<void> runner = createTestCommandRunner(command);
 
       await runner.run(<String>['create', '--no-pub', '--template=app', 'testy']);
-      expect(await command.usageValues,
-             containsPair(CustomDimensions.commandCreateAndroidLanguage, 'kotlin'));
+      expect((await command.usageValues).commandCreateAndroidLanguage, 'kotlin');
 
       await runner.run(<String>[
         'create',
@@ -121,8 +137,7 @@ void main() {
         '--android-language=java',
         'testy',
       ]);
-      expect(await command.usageValues,
-             containsPair(CustomDimensions.commandCreateAndroidLanguage, 'java'));
+      expect((await command.usageValues).commandCreateAndroidLanguage, 'java');
     }));
   });
 }

@@ -142,12 +142,12 @@ class DessertDataSource extends DataTableSource {
 }
 
 class DataTableDemo extends StatefulWidget {
-  const DataTableDemo({Key? key}) : super(key: key);
+  const DataTableDemo({super.key});
 
   static const String routeName = '/material/data-table';
 
   @override
-  _DataTableDemoState createState() => _DataTableDemoState();
+  State<DataTableDemo> createState() => _DataTableDemoState();
 }
 
 class _DataTableDemoState extends State<DataTableDemo> {

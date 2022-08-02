@@ -479,20 +479,18 @@ class SliverConstraints extends Constraints {
   }
 
   @override
-  int get hashCode {
-    return hashValues(
-      axisDirection,
-      growthDirection,
-      scrollOffset,
-      overlap,
-      remainingPaintExtent,
-      crossAxisExtent,
-      crossAxisDirection,
-      viewportMainAxisExtent,
-      remainingCacheExtent,
-      cacheOrigin,
-    );
-  }
+  int get hashCode => Object.hash(
+    axisDirection,
+    growthDirection,
+    scrollOffset,
+    overlap,
+    remainingPaintExtent,
+    crossAxisExtent,
+    crossAxisDirection,
+    viewportMainAxisExtent,
+    remainingCacheExtent,
+    cacheOrigin,
+  );
 
   @override
   String toString() {
@@ -870,7 +868,7 @@ class SliverHitTestResult extends HitTestResult {
 ///
 /// The coordinate system used by this hit test entry is relative to the
 /// [AxisDirection] of the target sliver.
-class SliverHitTestEntry extends HitTestEntry {
+class SliverHitTestEntry extends HitTestEntry<RenderSliver> {
   /// Creates a sliver hit test entry.
   ///
   /// The [mainAxisPosition] and [crossAxisPosition] arguments must not be null.
@@ -881,9 +879,6 @@ class SliverHitTestEntry extends HitTestEntry {
   }) : assert(mainAxisPosition != null),
        assert(crossAxisPosition != null),
        super(target);
-
-  @override
-  RenderSliver get target => super.target as RenderSliver;
 
   /// The distance in the [AxisDirection] from the edge of the sliver's painted
   /// area (as given by the [SliverConstraints.scrollOffset]) to the hit point.
@@ -919,7 +914,7 @@ class SliverHitTestEntry extends HitTestEntry {
 class SliverLogicalParentData extends ParentData {
   /// The position of the child relative to the zero scroll offset.
   ///
-  /// The number of pixels from from the zero scroll offset of the parent sliver
+  /// The number of pixels from the zero scroll offset of the parent sliver
   /// (the line at which its [SliverConstraints.scrollOffset] is zero) to the
   /// side of the child closest to that offset. A [layoutOffset] can be null
   /// when it cannot be determined. The value will be set after layout.
@@ -1203,9 +1198,9 @@ abstract class RenderSliver extends RenderObject {
   @override
   void debugAssertDoesMeetConstraints() {
     assert(geometry!.debugAssertIsValid(
-      informationCollector: () sync* {
-        yield describeForError('The RenderSliver that returned the offending geometry was');
-      },
+      informationCollector: () => <DiagnosticsNode>[
+        describeForError('The RenderSliver that returned the offending geometry was'),
+      ],
     ));
     assert(() {
       if (geometry!.paintOrigin + geometry!.paintExtent > constraints.remainingPaintExtent) {

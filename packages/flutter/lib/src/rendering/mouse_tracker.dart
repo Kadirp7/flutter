@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// This library intentionally uses the LinkedHashMap constructor to declare that
+// entries will be ordered. Using collection literals for this requires casting the
+// resulting map, which has a runtime cost.
+// ignore_for_file: prefer_collection_literals
+
 import 'dart:collection' show LinkedHashMap;
 import 'dart:ui';
 
@@ -231,11 +236,11 @@ class MouseTracker extends ChangeNotifier {
 
   LinkedHashMap<MouseTrackerAnnotation, Matrix4> _hitTestResultToAnnotations(HitTestResult result) {
     assert(result != null);
-    final LinkedHashMap<MouseTrackerAnnotation, Matrix4> annotations = <MouseTrackerAnnotation, Matrix4>{}
-        as LinkedHashMap<MouseTrackerAnnotation, Matrix4>;
+    final LinkedHashMap<MouseTrackerAnnotation, Matrix4> annotations = LinkedHashMap<MouseTrackerAnnotation, Matrix4>();
     for (final HitTestEntry entry in result.path) {
-      if (entry.target is MouseTrackerAnnotation) {
-        annotations[entry.target as MouseTrackerAnnotation] = entry.transform!;
+      final Object target = entry.target;
+      if (target is MouseTrackerAnnotation) {
+        annotations[target] = entry.transform!;
       }
     }
     return annotations;
@@ -252,7 +257,7 @@ class MouseTracker extends ChangeNotifier {
     final Offset globalPosition = state.latestEvent.position;
     final int device = state.device;
     if (!_mouseStates.containsKey(device))
-      return <MouseTrackerAnnotation, Matrix4>{} as LinkedHashMap<MouseTrackerAnnotation, Matrix4>;
+      return LinkedHashMap<MouseTrackerAnnotation, Matrix4>();
 
     return _hitTestResultToAnnotations(hitTest(globalPosition));
   }
@@ -279,7 +284,7 @@ class MouseTracker extends ChangeNotifier {
     _mouseCursorMixin.handleDeviceCursorUpdate(
       details.device,
       details.triggeringEvent,
-      details.nextAnnotations.keys.map((MouseTrackerAnnotation annotaion) => annotaion.cursor),
+      details.nextAnnotations.keys.map((MouseTrackerAnnotation annotation) => annotation.cursor),
     );
   }
 
@@ -289,17 +294,20 @@ class MouseTracker extends ChangeNotifier {
   /// Trigger a device update with a new event and its corresponding hit test
   /// result.
   ///
-  /// The [updateWithEvent] indicates that an event has been observed, and
-  /// is called during the handler of the event. The `getResult` should return
-  /// the hit test result at the position of the event.
+  /// The [updateWithEvent] indicates that an event has been observed, and is
+  /// called during the handler of the event.  It is typically called by
+  /// [RendererBinding], and should be called with all events received, and let
+  /// [MouseTracker] filter which to react to.
+  ///
+  /// The `getResult` is a function to return the hit test result at the
+  /// position of the event. It should not simply return cached hit test
+  /// result, because the cache does not change throughout a tap sequence.
   void updateWithEvent(PointerEvent event, ValueGetter<HitTestResult> getResult) {
-    assert(event != null);
-    final HitTestResult result = event is PointerRemovedEvent ? HitTestResult() : getResult();
-    assert(result != null);
     if (event.kind != PointerDeviceKind.mouse)
       return;
     if (event is PointerSignalEvent)
       return;
+    final HitTestResult result = event is PointerRemovedEvent ? HitTestResult() : getResult();
     final int device = event.device;
     final _MouseState? existingState = _mouseStates[device];
     if (!_shouldMarkStateDirty(existingState, event))
@@ -322,7 +330,7 @@ class MouseTracker extends ChangeNotifier {
 
         final PointerEvent lastEvent = targetState.replaceLatestEvent(event);
         final LinkedHashMap<MouseTrackerAnnotation, Matrix4> nextAnnotations = event is PointerRemovedEvent ?
-            <MouseTrackerAnnotation, Matrix4>{} as LinkedHashMap<MouseTrackerAnnotation, Matrix4> :
+            LinkedHashMap<MouseTrackerAnnotation, Matrix4>() :
             _hitTestResultToAnnotations(result);
         final LinkedHashMap<MouseTrackerAnnotation, Matrix4> lastAnnotations = targetState.replaceAnnotations(nextAnnotations);
 

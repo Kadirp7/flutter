@@ -2,12 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// @dart = 2.8
-
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
-import 'package:meta/meta.dart';
 import 'package:package_config/package_config.dart';
 
 import '../../artifacts.dart';
@@ -15,14 +12,16 @@ import '../../base/file_system.dart';
 import '../../base/io.dart';
 import '../../build_info.dart';
 import '../../cache.dart';
+import '../../convert.dart';
 import '../../dart/language_version.dart';
 import '../../dart/package_map.dart';
 import '../../globals.dart' as globals;
 import '../../project.dart';
+import '../../web/flutter_js.dart' as flutter_js;
 import '../build_system.dart';
 import '../depfile.dart';
+import '../exceptions.dart';
 import 'assets.dart';
-import 'common.dart';
 import 'localizations.dart';
 
 /// Whether the application has web plugins.
@@ -35,6 +34,12 @@ const String kDart2jsOptimization = 'Dart2jsOptimization';
 
 /// Whether to disable dynamic generation code to satisfy csp policies.
 const String kCspMode = 'cspMode';
+
+/// Base href to set in index.html in flutter build command
+const String kBaseHref = 'baseHref';
+
+/// Placeholder for base href
+const String kBaseHrefPlaceholder = r'$FLUTTER_BASE_HREF';
 
 /// The caching strategy to use for service worker generation.
 const String kServiceWorkerStrategy = 'ServiceWorkerStrategy';
@@ -58,7 +63,7 @@ const String kOfflineFirst = 'offline-first';
 const String kNoneWorker = 'none';
 
 /// Convert a [value] into a [ServiceWorkerStrategy].
-ServiceWorkerStrategy _serviceWorkerStrategyFromString(String value) {
+ServiceWorkerStrategy _serviceWorkerStrategyFromString(String? value) {
   switch (value) {
     case kNoneWorker:
       return ServiceWorkerStrategy.none;
@@ -91,10 +96,10 @@ class WebEntrypointTarget extends Target {
 
   @override
   Future<void> build(Environment environment) async {
-    final String targetFile = environment.defines[kTargetFile];
-    final bool hasPlugins = environment.defines[kHasWebPlugins] == 'true';
+    final String? targetFile = environment.defines[kTargetFile];
+    final bool hasWebPlugins = environment.defines[kHasWebPlugins] == 'true';
     final Uri importUri = environment.fileSystem.file(targetFile).absolute.uri;
-    // TODO(jonahwilliams): support configuration of this file.
+    // TODO(zanderso): support configuration of this file.
     const String packageFile = '.packages';
     final PackageConfig packageConfig = await loadPackageConfigWithLogging(
       environment.fileSystem.file(packageFile),
@@ -104,7 +109,7 @@ class WebEntrypointTarget extends Target {
     final LanguageVersion languageVersion = determineLanguageVersion(
       environment.fileSystem.file(targetFile),
       packageConfig[flutterProject.manifest.appName],
-      Cache.flutterRoot,
+      Cache.flutterRoot!,
     );
 
     // Use the PackageConfig to find the correct package-scheme import path
@@ -116,48 +121,54 @@ class WebEntrypointTarget extends Target {
     // By construction, this will only be null if the .packages file does not
     // have an entry for the user's application or if the main file is
     // outside of the lib/ directory.
-    final String mainImport = packageConfig.toPackageUri(importUri)?.toString()
+    final String importedEntrypoint = packageConfig.toPackageUri(importUri)?.toString()
       ?? importUri.toString();
 
-    String contents;
-    if (hasPlugins) {
+    String? generatedImport;
+    if (hasWebPlugins) {
       final Uri generatedUri = environment.projectDir
         .childDirectory('lib')
         .childFile('generated_plugin_registrant.dart')
         .absolute
         .uri;
-      final String generatedImport = packageConfig.toPackageUri(generatedUri)?.toString()
+      generatedImport = packageConfig.toPackageUri(generatedUri)?.toString()
         ?? generatedUri.toString();
-      contents = '''
-// @dart=${languageVersion.major}.${languageVersion.minor}
-
-import 'dart:ui' as ui;
-
-import 'package:flutter_web_plugins/flutter_web_plugins.dart';
-
-import '$generatedImport';
-import '$mainImport' as entrypoint;
-
-Future<void> main() async {
-  registerPlugins(webPluginRegistrar);
-  await ui.webOnlyInitializePlatform();
-  entrypoint.main();
-}
-''';
-    } else {
-      contents = '''
-// @dart=${languageVersion.major}.${languageVersion.minor}
-
-import 'dart:ui' as ui;
-
-import '$mainImport' as entrypoint;
-
-Future<void> main() async {
-  await ui.webOnlyInitializePlatform();
-  entrypoint.main();
-}
-''';
     }
+
+    final String contents = <String>[
+        '// @dart=${languageVersion.major}.${languageVersion.minor}',
+        '// Flutter web bootstrap script for $importedEntrypoint.',
+        '',
+        "import 'dart:ui' as ui;",
+        "import 'dart:async';",
+        '',
+        "import '$importedEntrypoint' as entrypoint;",
+        if (hasWebPlugins)
+          "import 'package:flutter_web_plugins/flutter_web_plugins.dart';",
+        if (hasWebPlugins)
+          "import '$generatedImport';",
+        '',
+        'typedef _UnaryFunction = dynamic Function(List<String> args);',
+        'typedef _NullaryFunction = dynamic Function();',
+        '',
+        'Future<void> main() async {',
+        '  await ui.webOnlyWarmupEngine(',
+        '    runApp: () {',
+        '      if (entrypoint.main is _UnaryFunction) {',
+        '        return (entrypoint.main as _UnaryFunction)(<String>[]);',
+        '      }',
+        '      return (entrypoint.main as _NullaryFunction)();',
+        '    },',
+        if (hasWebPlugins) ...<String>[
+        '    registerPlugins: () {',
+        '      registerPlugins(webPluginRegistrar);',
+        '    },',
+        ],
+        '  );',
+        '}',
+        '',
+      ].join('\n');
+
     environment.buildDir.childFile('main.dart')
       .writeAsStringSync(contents);
   }
@@ -178,9 +189,9 @@ class Dart2JSTarget extends Target {
 
   @override
   List<Source> get inputs => const <Source>[
-    Source.artifact(Artifact.flutterWebSdk),
-    Source.artifact(Artifact.dart2jsSnapshot),
-    Source.artifact(Artifact.engineDartBinary),
+    Source.hostArtifact(HostArtifact.flutterWebSdk),
+    Source.hostArtifact(HostArtifact.dart2jsSnapshot),
+    Source.hostArtifact(HostArtifact.engineDartBinary),
     Source.pattern('{BUILD_DIR}/main.dart'),
     Source.pattern('{PROJECT_DIR}/.dart_tool/package_config_subset'),
   ];
@@ -193,18 +204,33 @@ class Dart2JSTarget extends Target {
     'dart2js.d',
   ];
 
+  String _collectOutput(ProcessResult result) {
+    final String stdout = result.stdout is List<int>
+        ? utf8.decode(result.stdout as List<int>)
+        : result.stdout as String;
+    final String stderr = result.stderr is List<int>
+        ? utf8.decode(result.stderr as List<int>)
+        : result.stderr as String;
+    return stdout + stderr;
+  }
+
   @override
   Future<void> build(Environment environment) async {
-    final BuildMode buildMode = getBuildModeForName(environment.defines[kBuildMode]);
+    final String? buildModeEnvironment = environment.defines[kBuildMode];
+    if (buildModeEnvironment == null) {
+      throw MissingDefineException(kBuildMode, name);
+    }
+    final BuildMode buildMode = getBuildModeForName(buildModeEnvironment);
     final bool sourceMapsEnabled = environment.defines[kSourceMapsEnabled] == 'true';
     final bool nativeNullAssertions = environment.defines[kNativeNullAssertions] == 'true';
-
+    final Artifacts artifacts = globals.artifacts!;
+    final String librariesSpec = (artifacts.getHostArtifact(HostArtifact.flutterWebSdk) as Directory).childFile('libraries.json').path;
     final List<String> sharedCommandOptions = <String>[
-      globals.artifacts.getArtifactPath(Artifact.engineDartBinary),
+      artifacts.getHostArtifact(HostArtifact.engineDartBinary).path,
       '--disable-dart-dev',
-      globals.artifacts.getArtifactPath(Artifact.dart2jsSnapshot),
-      '--libraries-spec=${globals.fs.path.join(globals.artifacts.getArtifactPath(Artifact.flutterWebSdk), 'libraries.json')}',
-      ...?decodeCommaSeparated(environment.defines, kExtraFrontEndOptions),
+      artifacts.getHostArtifact(HostArtifact.dart2jsSnapshot).path,
+      '--libraries-spec=$librariesSpec',
+      ...decodeCommaSeparated(environment.defines, kExtraFrontEndOptions),
       if (nativeNullAssertions)
         '--native-null-assertions',
       if (buildMode == BuildMode.profile)
@@ -228,10 +254,10 @@ class Dart2JSTarget extends Target {
       environment.buildDir.childFile('main.dart').path, // dartfile
     ]);
     if (kernelResult.exitCode != 0) {
-      throw Exception(kernelResult.stdout + kernelResult.stderr);
+      throw Exception(_collectOutput(kernelResult));
     }
 
-    final String dart2jsOptimization = environment.defines[kDart2jsOptimization];
+    final String? dart2jsOptimization = environment.defines[kDart2jsOptimization];
     final File outputJSFile = environment.buildDir.childFile('main.dart.js');
     final bool csp = environment.defines[kCspMode] == 'true';
 
@@ -245,12 +271,12 @@ class Dart2JSTarget extends Target {
       environment.buildDir.childFile('app.dill').path, // dartfile
     ]);
     if (javaScriptResult.exitCode != 0) {
-      throw Exception(javaScriptResult.stdout + javaScriptResult.stderr);
+      throw Exception(_collectOutput(javaScriptResult));
     }
     final File dart2jsDeps = environment.buildDir
       .childFile('app.dill.deps');
     if (!dart2jsDeps.existsSync()) {
-      globals.printError('Warning: dart2js did not produced expected deps list at '
+      globals.printWarning('Warning: dart2js did not produced expected deps list at '
         '${dart2jsDeps.path}');
       return;
     }
@@ -357,7 +383,7 @@ class WebReleaseBundle extends Target {
       // in question.
       if (environment.fileSystem.path.basename(inputFile.path) == 'index.html') {
         final String randomHash = Random().nextInt(4294967296).toString();
-        final String resultString = inputFile.readAsStringSync()
+        String resultString = inputFile.readAsStringSync()
           .replaceFirst(
             'var serviceWorkerVersion = null',
             "var serviceWorkerVersion = '$randomHash'",
@@ -368,6 +394,12 @@ class WebReleaseBundle extends Target {
             "navigator.serviceWorker.register('flutter_service_worker.js')",
             "navigator.serviceWorker.register('flutter_service_worker.js?v=$randomHash')",
           );
+        final String? baseHref = environment.defines[kBaseHref];
+        if (resultString.contains(kBaseHrefPlaceholder) && baseHref == null) {
+          resultString = resultString.replaceAll(kBaseHrefPlaceholder, '/');
+        } else if (resultString.contains(kBaseHrefPlaceholder) && baseHref != null) {
+          resultString = resultString.replaceAll(kBaseHrefPlaceholder, baseHref);
+        }
         outputFile.writeAsStringSync(resultString);
         continue;
       }
@@ -381,17 +413,71 @@ class WebReleaseBundle extends Target {
   }
 }
 
+/// Static assets provided by the Flutter SDK that do not change, such as
+/// CanvasKit.
+///
+/// These assets can be cached forever and are only invalidated when the
+/// Flutter SDK is upgraded to a new version.
+class WebBuiltInAssets extends Target {
+  const WebBuiltInAssets(this.fileSystem, this.cache);
+
+  final FileSystem fileSystem;
+  final Cache cache;
+
+  @override
+  String get name => 'web_static_assets';
+
+  @override
+  List<Target> get dependencies => const <Target>[];
+
+  @override
+  List<String> get depfiles => const <String>[];
+
+  @override
+  List<Source> get inputs => const <Source>[];
+
+  @override
+  List<Source> get outputs => const <Source>[];
+
+  @override
+  Future<void> build(Environment environment) async {
+    // TODO(yjbanov): https://github.com/flutter/flutter/issues/52588
+    //
+    // Update this when we start building CanvasKit from sources. In the
+    // meantime, get the Web SDK directory from cache rather than through
+    // Artifacts. The latter is sensitive to `--local-engine`, which changes
+    // the directory to point to ENGINE/src/out. However, CanvasKit is not yet
+    // built as part of the engine, but fetched from CIPD, and so it won't be
+    // found in ENGINE/src/out.
+    final Directory flutterWebSdk = cache.getWebSdkDirectory();
+    final Directory canvasKitDirectory = flutterWebSdk.childDirectory('canvaskit');
+    for (final File file in canvasKitDirectory.listSync(recursive: true).whereType<File>()) {
+      final String relativePath = fileSystem.path.relative(file.path, from: canvasKitDirectory.path);
+      final String targetPath = fileSystem.path.join(environment.outputDir.path, 'canvaskit', relativePath);
+      file.copySync(targetPath);
+    }
+
+    // Write the flutter.js file
+    final File flutterJsFile = environment.outputDir.childFile('flutter.js');
+    flutterJsFile.writeAsStringSync(flutter_js.generateFlutterJsFile());
+  }
+}
+
 /// Generate a service worker for a web target.
 class WebServiceWorker extends Target {
-  const WebServiceWorker();
+  const WebServiceWorker(this.fileSystem, this.cache);
+
+  final FileSystem fileSystem;
+  final Cache cache;
 
   @override
   String get name => 'web_service_worker';
 
   @override
-  List<Target> get dependencies => const <Target>[
-    Dart2JSTarget(),
-    WebReleaseBundle(),
+  List<Target> get dependencies => <Target>[
+    const Dart2JSTarget(),
+    const WebReleaseBundle(),
+    WebBuiltInAssets(fileSystem, cache),
   ];
 
   @override
@@ -443,7 +529,6 @@ class WebServiceWorker extends Target {
     final String serviceWorker = generateServiceWorker(
       urlToHash,
       <String>[
-        '/',
         'main.dart.js',
         'index.html',
         'assets/NOTICES',
@@ -476,7 +561,7 @@ class WebServiceWorker extends Target {
 String generateServiceWorker(
   Map<String, String> resources,
   List<String> coreBundle, {
-  @required ServiceWorkerStrategy serviceWorkerStrategy,
+  required ServiceWorkerStrategy serviceWorkerStrategy,
 }) {
   if (serviceWorkerStrategy == ServiceWorkerStrategy.none) {
     return '';

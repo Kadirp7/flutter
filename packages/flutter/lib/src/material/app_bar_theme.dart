@@ -28,20 +28,36 @@ import 'theme.dart';
 class AppBarTheme with Diagnosticable {
   /// Creates a theme that can be used for [ThemeData.appBarTheme].
   const AppBarTheme({
+    @Deprecated(
+      'This property is no longer used, please use systemOverlayStyle instead. '
+      'This feature was deprecated after v2.4.0-0.0.pre.',
+    )
     this.brightness,
     Color? color,
     Color? backgroundColor,
     this.foregroundColor,
     this.elevation,
+    this.scrolledUnderElevation,
     this.shadowColor,
+    this.surfaceTintColor,
+    this.shape,
     this.iconTheme,
     this.actionsIconTheme,
+    @Deprecated(
+      'This property is no longer used, please use toolbarTextStyle and titleTextStyle instead. '
+      'This feature was deprecated after v2.4.0-0.0.pre.',
+    )
     this.textTheme,
     this.centerTitle,
     this.titleSpacing,
+    this.toolbarHeight,
     this.toolbarTextStyle,
     this.titleTextStyle,
     this.systemOverlayStyle,
+    @Deprecated(
+      'This property is obsolete and is false by default. '
+      'This feature was deprecated after v2.4.0-0.0.pre.',
+    )
     this.backwardsCompatibility,
   }) : assert(
          color == null || backgroundColor == null,
@@ -49,7 +65,7 @@ class AppBarTheme with Diagnosticable {
        ),
        backgroundColor = backgroundColor ?? color;
 
-  /// This property is obsolete, please use [systemOverlayStyle] instead.
+  /// This property is deprecated, please use [systemOverlayStyle] instead.
   ///
   /// Overrides the default value of the obsolete [AppBar.brightness]
   /// property which implicitly defines [AppBar.systemOverlayStyle] in
@@ -61,8 +77,14 @@ class AppBarTheme with Diagnosticable {
   ///    [AppBar.systemOverlayStyle] in all descendant [AppBar] widgets.
   ///  * [AppBar.backwardsCompatibility], which forces [AppBar] to depend
   ///    on this obsolete property.
+  @Deprecated(
+    'This property is no longer used, please use systemOverlayStyle instead. '
+    'This feature was deprecated after v2.4.0-0.0.pre.',
+  )
   final Brightness? brightness;
 
+  /// This property is deprecated, please use [backgroundColor] instead.
+  ///
   /// Obsolete property that overrides the default value of
   /// [AppBar.backgroundColor] in all descendant [AppBar] widgets.
   ///
@@ -73,6 +95,10 @@ class AppBarTheme with Diagnosticable {
   ///    [AppBar.backgroundColor].
   ///  * [AppBar.backwardsCompatibility], which forces [AppBar] to depend
   ///    on this obsolete property.
+  @Deprecated(
+    'This property is no longer used, please use backgroundColor instead. '
+    'This feature was deprecated after v2.4.0-0.0.pre.',
+  )
   Color? get color => backgroundColor;
 
   /// Overrides the default value of [AppBar.backgroundColor] in all
@@ -97,9 +123,21 @@ class AppBarTheme with Diagnosticable {
   /// descendant [AppBar] widgets.
   final double? elevation;
 
+  /// Overrides the default value of [AppBar.scrolledUnderElevation] in all
+  /// descendant [AppBar] widgets.
+  final double? scrolledUnderElevation;
+
   /// Overrides the default value for [AppBar.shadowColor] in all
   /// descendant widgets.
   final Color? shadowColor;
+
+  /// Overrides the default value for [AppBar.surfaceTintColor] in all
+  /// descendant widgets.
+  final Color? surfaceTintColor;
+
+  /// Overrides the default value for [AppBar.shape] in all
+  /// descendant widgets.
+  final ShapeBorder? shape;
 
   /// Overrides the default value of [AppBar.iconTheme] in all
   /// descendant [AppBar] widgets.
@@ -123,6 +161,9 @@ class AppBarTheme with Diagnosticable {
   ///    [AppBar.foregroundColor] in all descendant widgets.
   final IconThemeData? actionsIconTheme;
 
+  /// This property is deprecated, please use [toolbarTextStyle] and
+  /// [titleTextStyle] instead.
+  ///
   /// Overrides the default value of the obsolete [AppBar.textTheme]
   /// property in all descendant [AppBar] widgets.
   ///
@@ -132,6 +173,10 @@ class AppBarTheme with Diagnosticable {
   ///    [AppBar.toolbarTextStyle in all descendant [AppBar] widgets.
   ///  * [titleTextStyle], which overrides the default value for
   ///    [AppBar.titleTextStyle in all descendant [AppBar] widgets.
+  @Deprecated(
+    'This property is no longer used, please use toolbarTextStyle and titleTextStyle instead. '
+    'This feature was deprecated after v2.4.0-0.0.pre.',
+  )
   final TextTheme? textTheme;
 
   /// Overrides the default value for [AppBar.centerTitle].
@@ -144,8 +189,20 @@ class AppBarTheme with Diagnosticable {
   /// If null, [AppBar] uses default value of [NavigationToolbar.kMiddleSpacing].
   final double? titleSpacing;
 
+  /// Overrides the default value for the [AppBar.toolbarHeight]
+  /// property in all descendant [AppBar] widgets.
+  ///
+  /// See also:
+  ///
+  ///  * [AppBar.preferredHeightFor], which computes the overall
+  ///    height of an AppBar widget, taking this value into account.
+  final double? toolbarHeight;
+
   /// Overrides the default value for the obsolete [AppBar.toolbarTextStyle]
   /// property in all descendant [AppBar] widgets.
+  ///
+  /// If this property is specified, then [backwardsCompatibility]
+  /// should be false (the default).
   ///
   /// See also:
   ///
@@ -155,6 +212,9 @@ class AppBarTheme with Diagnosticable {
 
   /// Overrides the default value of [AppBar.titleTextStyle]
   /// property in all descendant [AppBar] widgets.
+  ///
+  /// If this property is specified, then [backwardsCompatibility]
+  /// should be false (the default).
   ///
   /// See also:
   ///
@@ -168,25 +228,45 @@ class AppBarTheme with Diagnosticable {
 
   /// Overrides the default value of [AppBar.backwardsCompatibility]
   /// property in all descendant [AppBar] widgets.
+  @Deprecated(
+    'This property is obsolete and is false by default. '
+    'This feature was deprecated after v2.4.0-0.0.pre.',
+  )
   final bool? backwardsCompatibility;
 
   /// Creates a copy of this object with the given fields replaced with the
   /// new values.
   AppBarTheme copyWith({
     IconThemeData? actionsIconTheme,
+    @Deprecated(
+      'This property is no longer used, please use systemOverlayStyle instead. '
+      'This feature was deprecated after v2.4.0-0.0.pre.',
+    )
     Brightness? brightness,
     Color? color,
     Color? backgroundColor,
     Color? foregroundColor,
     double? elevation,
+    double? scrolledUnderElevation,
     Color? shadowColor,
+    Color? surfaceTintColor,
+    ShapeBorder? shape,
     IconThemeData? iconTheme,
+    @Deprecated(
+      'This property is no longer used, please use toolbarTextStyle and titleTextStyle instead. '
+      'This feature was deprecated after v2.4.0-0.0.pre.',
+    )
     TextTheme? textTheme,
     bool? centerTitle,
     double? titleSpacing,
+    double? toolbarHeight,
     TextStyle? toolbarTextStyle,
     TextStyle? titleTextStyle,
     SystemUiOverlayStyle? systemOverlayStyle,
+    @Deprecated(
+      'This property is obsolete and is false by default. '
+      'This feature was deprecated after v2.4.0-0.0.pre.',
+    )
     bool? backwardsCompatibility,
   }) {
     assert(
@@ -198,12 +278,16 @@ class AppBarTheme with Diagnosticable {
       backgroundColor: backgroundColor ?? color ?? this.backgroundColor,
       foregroundColor: foregroundColor ?? this.foregroundColor,
       elevation: elevation ?? this.elevation,
+      scrolledUnderElevation: scrolledUnderElevation ?? this.scrolledUnderElevation,
       shadowColor: shadowColor ?? this.shadowColor,
+      surfaceTintColor: surfaceTintColor ?? this.surfaceTintColor,
+      shape: shape ?? this.shape,
       iconTheme: iconTheme ?? this.iconTheme,
       actionsIconTheme: actionsIconTheme ?? this.actionsIconTheme,
       textTheme: textTheme ?? this.textTheme,
       centerTitle: centerTitle ?? this.centerTitle,
       titleSpacing: titleSpacing ?? this.titleSpacing,
+      toolbarHeight: toolbarHeight ?? this.toolbarHeight,
       toolbarTextStyle: toolbarTextStyle ?? this.toolbarTextStyle,
       titleTextStyle: titleTextStyle ?? this.titleTextStyle,
       systemOverlayStyle: systemOverlayStyle ?? this.systemOverlayStyle,
@@ -228,12 +312,16 @@ class AppBarTheme with Diagnosticable {
       backgroundColor: Color.lerp(a?.backgroundColor, b?.backgroundColor, t),
       foregroundColor: Color.lerp(a?.foregroundColor, b?.foregroundColor, t),
       elevation: lerpDouble(a?.elevation, b?.elevation, t),
+      scrolledUnderElevation: lerpDouble(a?.scrolledUnderElevation, b?.scrolledUnderElevation, t),
       shadowColor: Color.lerp(a?.shadowColor, b?.shadowColor, t),
+      surfaceTintColor: Color.lerp(a?.surfaceTintColor, b?.surfaceTintColor, t),
+      shape: ShapeBorder.lerp(a?.shape, b?.shape, t),
       iconTheme: IconThemeData.lerp(a?.iconTheme, b?.iconTheme, t),
       actionsIconTheme: IconThemeData.lerp(a?.actionsIconTheme, b?.actionsIconTheme, t),
       textTheme: TextTheme.lerp(a?.textTheme, b?.textTheme, t),
       centerTitle: t < 0.5 ? a?.centerTitle : b?.centerTitle,
       titleSpacing: lerpDouble(a?.titleSpacing, b?.titleSpacing, t),
+      toolbarHeight: lerpDouble(a?.toolbarHeight, b?.toolbarHeight, t),
       toolbarTextStyle: TextStyle.lerp(a?.toolbarTextStyle, b?.toolbarTextStyle, t),
       titleTextStyle: TextStyle.lerp(a?.titleTextStyle, b?.titleTextStyle, t),
       systemOverlayStyle: t < 0.5 ? a?.systemOverlayStyle : b?.systemOverlayStyle,
@@ -242,24 +330,26 @@ class AppBarTheme with Diagnosticable {
   }
 
   @override
-  int get hashCode {
-    return hashValues(
-      brightness,
-      backgroundColor,
-      foregroundColor,
-      elevation,
-      shadowColor,
-      iconTheme,
-      actionsIconTheme,
-      textTheme,
-      centerTitle,
-      titleSpacing,
-      toolbarTextStyle,
-      titleTextStyle,
-      systemOverlayStyle,
-      backwardsCompatibility,
-    );
-  }
+  int get hashCode => Object.hash(
+    brightness,
+    backgroundColor,
+    foregroundColor,
+    elevation,
+    scrolledUnderElevation,
+    shadowColor,
+    surfaceTintColor,
+    shape,
+    iconTheme,
+    actionsIconTheme,
+    textTheme,
+    centerTitle,
+    titleSpacing,
+    toolbarHeight,
+    toolbarTextStyle,
+    titleTextStyle,
+    systemOverlayStyle,
+    backwardsCompatibility,
+  );
 
   @override
   bool operator ==(Object other) {
@@ -272,12 +362,16 @@ class AppBarTheme with Diagnosticable {
         && other.backgroundColor == backgroundColor
         && other.foregroundColor == foregroundColor
         && other.elevation == elevation
+        && other.scrolledUnderElevation == scrolledUnderElevation
         && other.shadowColor == shadowColor
+        && other.surfaceTintColor == surfaceTintColor
+        && other.shape == shape
         && other.iconTheme == iconTheme
         && other.actionsIconTheme == actionsIconTheme
         && other.textTheme == textTheme
         && other.centerTitle == centerTitle
         && other.titleSpacing == titleSpacing
+        && other.toolbarHeight == toolbarHeight
         && other.toolbarTextStyle == toolbarTextStyle
         && other.titleTextStyle == titleTextStyle
         && other.systemOverlayStyle == systemOverlayStyle
@@ -291,12 +385,16 @@ class AppBarTheme with Diagnosticable {
     properties.add(ColorProperty('backgroundColor', backgroundColor, defaultValue: null));
     properties.add(ColorProperty('foregroundColor', foregroundColor, defaultValue: null));
     properties.add(DiagnosticsProperty<double>('elevation', elevation, defaultValue: null));
+    properties.add(DiagnosticsProperty<double>('scrolledUnderElevation', scrolledUnderElevation, defaultValue: null));
     properties.add(ColorProperty('shadowColor', shadowColor, defaultValue: null));
+    properties.add(ColorProperty('surfaceTintColor', surfaceTintColor, defaultValue: null));
+    properties.add(DiagnosticsProperty<ShapeBorder>('shape', shape, defaultValue: null));
     properties.add(DiagnosticsProperty<IconThemeData>('iconTheme', iconTheme, defaultValue: null));
     properties.add(DiagnosticsProperty<IconThemeData>('actionsIconTheme', actionsIconTheme, defaultValue: null));
     properties.add(DiagnosticsProperty<TextTheme>('textTheme', textTheme, defaultValue: null));
     properties.add(DiagnosticsProperty<bool>('centerTitle', centerTitle, defaultValue: null));
     properties.add(DiagnosticsProperty<double>('titleSpacing', titleSpacing, defaultValue: null));
+    properties.add(DiagnosticsProperty<double>('toolbarHeight', toolbarHeight, defaultValue: null));
     properties.add(DiagnosticsProperty<TextStyle>('toolbarTextStyle', toolbarTextStyle, defaultValue: null));
     properties.add(DiagnosticsProperty<TextStyle>('titleTextStyle', titleTextStyle, defaultValue: null));
     properties.add(DiagnosticsProperty<bool>('backwardsCompatibility', backwardsCompatibility, defaultValue: null));

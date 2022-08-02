@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import 'dart:developer';
-import 'dart:ui' show hashValues;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -106,7 +105,7 @@ class ImageCache {
       return;
     TimelineTask? timelineTask;
     if (!kReleaseMode) {
-       timelineTask = TimelineTask()..start(
+      timelineTask = TimelineTask()..start(
         'ImageCache.setMaximumSize',
         arguments: <String, dynamic>{'value': value},
       );
@@ -411,7 +410,7 @@ class ImageCache {
     void listener(ImageInfo? info, bool syncCall) {
       int? sizeBytes;
       if (info != null) {
-        sizeBytes = info.image.height * info.image.width * 4;
+        sizeBytes = info.sizeBytes;
         info.dispose();
       }
       final _CachedImage image = _CachedImage(
@@ -517,7 +516,7 @@ class ImageCache {
       image.dispose();
       _cache.remove(key);
       if (!kReleaseMode) {
-        finishArgs['evictedKeys'].add(key.toString());
+        (finishArgs['evictedKeys'] as List<String>).add(key.toString());
       }
     }
     if (!kReleaseMode) {
@@ -596,7 +595,7 @@ class ImageCacheStatus {
   }
 
   @override
-  int get hashCode => hashValues(pending, keepAlive, live);
+  int get hashCode => Object.hash(pending, keepAlive, live);
 
   @override
   String toString() => '${objectRuntimeType(this, 'ImageCacheStatus')}(pending: $pending, live: $live, keepAlive: $keepAlive)';
@@ -622,7 +621,7 @@ abstract class _CachedImageBase {
     assert(handle != null);
     // Give any interested parties a chance to listen to the stream before we
     // potentially dispose it.
-    SchedulerBinding.instance!.addPostFrameCallback((Duration timeStamp) {
+    SchedulerBinding.instance.addPostFrameCallback((Duration timeStamp) {
       assert(handle != null);
       handle?.dispose();
       handle = null;

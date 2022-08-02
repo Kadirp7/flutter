@@ -48,9 +48,32 @@ void main() {
   });
 
   group('layout', () {
+    // Regression test for https://github.com/flutter/flutter/issues/22999
+    testWidgets('CupertinoPicker.builder test', (WidgetTester tester) async {
+      Widget buildFrame(int childCount) {
+        return Directionality(
+          textDirection: TextDirection.ltr,
+          child: CupertinoPicker.builder(
+            itemExtent: 50.0,
+            onSelectedItemChanged: (_) { },
+            itemBuilder: (BuildContext context, int index) {
+              return Text('$index');
+            },
+            childCount: childCount,
+          ),
+        );
+      }
+
+      await tester.pumpWidget(buildFrame(1));
+      expect(tester.renderObject(find.text('0')).attached, true);
+
+      await tester.pumpWidget(buildFrame(2));
+      expect(tester.renderObject(find.text('0')).attached, true);
+      expect(tester.renderObject(find.text('1')).attached, true);
+    });
+
     testWidgets('selected item is in the middle', (WidgetTester tester) async {
-      final FixedExtentScrollController controller =
-          FixedExtentScrollController(initialItem: 1);
+      final FixedExtentScrollController controller = FixedExtentScrollController(initialItem: 1);
 
       await tester.pumpWidget(
         Directionality(
@@ -159,10 +182,9 @@ void main() {
             width: 300.0,
             child: CupertinoPicker(
               itemExtent: 15.0,
-              children: const <Widget>[Text('1'), Text('1')],
               onSelectedItemChanged: (int i) {},
-              selectionOverlay: const CupertinoPickerDefaultSelectionOverlay(
-                  background: Color(0x12345678)),
+              selectionOverlay: const CupertinoPickerDefaultSelectionOverlay(background: Color(0x12345678)),
+              children: const <Widget>[Text('1'), Text('1')],
             ),
           ),
         ),
@@ -183,9 +205,9 @@ void main() {
             width: 300.0,
             child: CupertinoPicker(
               itemExtent: 15.0,
-              children: const <Widget>[Text('1'), Text('1')],
               onSelectedItemChanged: (int i) {},
               selectionOverlay: null,
+              children: const <Widget>[Text('1'), Text('1')],
             ),
           ),
         ),
@@ -202,8 +224,9 @@ void main() {
         final List<int> selectedItems = <int>[];
         final List<MethodCall> systemCalls = <MethodCall>[];
 
-        SystemChannels.platform.setMockMethodCallHandler((MethodCall methodCall) async {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (MethodCall methodCall) async {
           systemCalls.add(methodCall);
+          return null;
         });
 
         await tester.pumpWidget(
@@ -245,7 +268,9 @@ void main() {
             arguments: 'HapticFeedbackType.selectionClick',
           ),
         );
-    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
 
     testWidgets(
       'do not trigger haptic effects on non-iOS devices',
@@ -253,8 +278,9 @@ void main() {
         final List<int> selectedItems = <int>[];
         final List<MethodCall> systemCalls = <MethodCall>[];
 
-        SystemChannels.platform.setMockMethodCallHandler((MethodCall methodCall) async {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (MethodCall methodCall) async {
           systemCalls.add(methodCall);
+          return null;
         });
 
         await tester.pumpWidget(
@@ -279,11 +305,12 @@ void main() {
         await tester.drag(find.text('0'), const Offset(0.0, -100.0), warnIfMissed: false); // has an IgnorePointer
         expect(selectedItems, <int>[1]);
         expect(systemCalls, isEmpty);
-    }, variant: TargetPlatformVariant(TargetPlatform.values.where((TargetPlatform platform) => platform != TargetPlatform.iOS).toSet()));
+      },
+      variant: TargetPlatformVariant(TargetPlatform.values.where((TargetPlatform platform) => platform != TargetPlatform.iOS).toSet()),
+    );
 
     testWidgets('a drag in between items settles back', (WidgetTester tester) async {
-      final FixedExtentScrollController controller =
-          FixedExtentScrollController(initialItem: 10);
+      final FixedExtentScrollController controller = FixedExtentScrollController(initialItem: 10);
       final List<int> selectedItems = <int>[];
 
       await tester.pumpWidget(
@@ -394,5 +421,29 @@ void main() {
         <int>[8, 6, 4, 2, 0],
       );
     }, variant: const TargetPlatformVariant(<TargetPlatform>{ TargetPlatform.iOS,  TargetPlatform.macOS }));
+  });
+
+  group('CupertinoPickerDefaultSelectionOverlay', () {
+    testWidgets('should be using directional decoration', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        CupertinoApp(
+          theme: const CupertinoThemeData(brightness: Brightness.light),
+          home: CupertinoPicker(
+            itemExtent: 15.0,
+            onSelectedItemChanged: (int i) {},
+            selectionOverlay: const CupertinoPickerDefaultSelectionOverlay(background: Color(0x12345678)),
+            children: const <Widget>[Text('1'), Text('1')],
+          ),
+        ),
+      );
+
+      final Finder selectionContainer = find.byType(Container);
+      final Container container = tester.firstWidget<Container>(selectionContainer);
+      final EdgeInsetsGeometry? margin = container.margin;
+      final BorderRadiusGeometry? borderRadius = (container.decoration as BoxDecoration?)?.borderRadius;
+
+      expect(margin, isA<EdgeInsetsDirectional>());
+      expect(borderRadius, isA<BorderRadiusDirectional>());
+    });
   });
 }

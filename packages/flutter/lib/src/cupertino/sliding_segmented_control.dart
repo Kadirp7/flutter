@@ -4,6 +4,7 @@
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
@@ -123,8 +124,8 @@ class _SegmentState<T> extends State<_Segment<T>> with TickerProviderStateMixin<
 
   @override
   void didUpdateWidget(_Segment<T> oldWidget) {
-    assert(oldWidget.key == widget.key);
     super.didUpdateWidget(oldWidget);
+    assert(oldWidget.key == widget.key);
 
     if (oldWidget.shouldScaleContent != widget.shouldScaleContent) {
       highlightPressScaleAnimation = highlightPressScaleController.drive(
@@ -149,7 +150,6 @@ class _SegmentState<T> extends State<_Segment<T>> with TickerProviderStateMixin<
       // Expand the hitTest area of this widget.
       behavior: HitTestBehavior.opaque,
       child: IndexedStack(
-        index: 0,
         alignment: Alignment.center,
         children: <Widget>[
           AnimatedOpacity(
@@ -198,7 +198,7 @@ class _SegmentSeparator extends StatefulWidget {
   _SegmentSeparatorState createState() => _SegmentSeparatorState();
 }
 
-class _SegmentSeparatorState extends State<_SegmentSeparator> with TickerProviderStateMixin<_SegmentSeparator>  {
+class _SegmentSeparatorState extends State<_SegmentSeparator> with TickerProviderStateMixin<_SegmentSeparator> {
   late final AnimationController separatorOpacityController;
 
   @override
@@ -214,8 +214,8 @@ class _SegmentSeparatorState extends State<_SegmentSeparator> with TickerProvide
 
   @override
   void didUpdateWidget(_SegmentSeparator oldWidget) {
-    assert(oldWidget.key == widget.key);
     super.didUpdateWidget(oldWidget);
+    assert(oldWidget.key == widget.key);
 
     if (oldWidget.highlighted != widget.highlighted) {
       separatorOpacityController.animateTo(
@@ -284,6 +284,15 @@ class _SegmentSeparatorState extends State<_SegmentSeparator> with TickerProvide
 /// [thumbColor], [backgroundColor] arguments can be used to override the
 /// segmented control's colors from its defaults.
 ///
+/// {@tool dartpad}
+/// This example shows a [CupertinoSlidingSegmentedControl] with an enum type.
+///
+/// The callback provided to [onValueChanged] should update the state of
+/// the parent [StatefulWidget] using the [State.setState] method, so that
+/// the parent gets rebuilt; for example:
+///
+/// ** See code in examples/api/lib/cupertino/segmented_control/cupertino_sliding_segmented_control.0.dart **
+/// {@end-tool}
 /// See also:
 ///
 ///  * <https://developer.apple.com/design/human-interface-guidelines/ios/controls/segmented-controls/>
@@ -402,7 +411,7 @@ class CupertinoSlidingSegmentedControl<T> extends StatefulWidget {
   final EdgeInsetsGeometry padding;
 
   @override
-  _SegmentedControlState<T> createState() => _SegmentedControlState<T>();
+  State<CupertinoSlidingSegmentedControl<T>> createState() => _SegmentedControlState<T>();
 }
 
 class _SegmentedControlState<T> extends State<CupertinoSlidingSegmentedControl<T>>
@@ -648,12 +657,15 @@ class _SegmentedControlState<T> extends State<CupertinoSlidingSegmentedControl<T
           onTap: () { widget.onValueChanged(entry.key); },
           inMutuallyExclusiveGroup: true,
           selected: widget.groupValue == entry.key,
-          child: _Segment<T>(
-            key: ValueKey<T>(entry.key),
-            highlighted: isHighlighted,
-            pressed: pressed == entry.key,
-            isDragging: isThumbDragging,
-            child: entry.value,
+          child: MouseRegion(
+            cursor: kIsWeb ? SystemMouseCursors.click : MouseCursor.defer,
+            child: _Segment<T>(
+              key: ValueKey<T>(entry.key),
+              highlighted: isHighlighted,
+              pressed: pressed == entry.key,
+              isDragging: isThumbDragging,
+              child: entry.value,
+            ),
           ),
         ),
       );
@@ -687,11 +699,11 @@ class _SegmentedControlState<T> extends State<CupertinoSlidingSegmentedControl<T
           animation: thumbScaleAnimation,
           builder: (BuildContext context, Widget? child) {
             return _SegmentedControlRenderWidget<T>(
-              children: children,
               highlightedIndex: highlightedIndex,
               thumbColor: CupertinoDynamicColor.resolve(widget.thumbColor, context),
               thumbScale: thumbScaleAnimation.value,
               state: this,
+              children: children,
             );
           },
         ),
@@ -735,7 +747,7 @@ class _SegmentedControlRenderWidget<T> extends MultiChildRenderObjectWidget {
   }
 }
 
-class _SegmentedControlContainerBoxParentData extends ContainerBoxParentData<RenderBox> {}
+class _SegmentedControlContainerBoxParentData extends ContainerBoxParentData<RenderBox> { }
 
 // The behavior of a UISegmentedControl as observed on iOS 13.1:
 //
@@ -993,7 +1005,7 @@ class _RenderSegmentedControl<T> extends RenderBox
     assert(rightMost > leftMost);
 
     // Ignore the horizontal position and the height of `thumbRect`, and
-    // calcuates them from `children`.
+    // calculates them from `children`.
     return Rect.fromLTRB(
       math.max(thumbRect.left, leftMost - _kThumbInsets.left),
       firstChildOffset.dy - _kThumbInsets.top,
